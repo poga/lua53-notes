@@ -1,0 +1,5 @@
+[book]
+authors = ["Chieh Po"]
+multilingual = false
+src = "src"
+title = "Notes on the Implementation of Lua 5.3"
