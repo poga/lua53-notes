@@ -16,7 +16,7 @@ From [lua.org](https://lua.org):
 
 ## How to read this book
 
-**Reading code is personal**. It's different from reading a book. It's trying to understand the design of a system. It's non-linear, tear down, cross referencing, experiment, put it back together, and repeat.
+**Reading code is personal**. It's different from reading a book. It's trying to understand the design of a system. It's non-linear, tearing down, cross-referencing, experimenting, put it back together, and repeat.
 
 This book is not a comprehensive, line-by-line explanation. This book is a tour guide. It's a companion, instead of a replacement, of your journey.
 

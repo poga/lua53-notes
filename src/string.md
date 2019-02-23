@@ -39,12 +39,12 @@ typedef union {
 Note:
 
 * `TString` contains only the metadata of a string. There's no actual string body member defined in the struct.
-* There are two types of `TString`, **long string** and **short string**.
+* There are two types of `TString`: **long string** and **short string**.
 * `UTString` is defined to ensure maximum alignment.
 
 ### Creating a String
 
-To create a string, first we check if the string is already exist in the global string cache. Only create new string when it's not in the cache.
+To create a string, first, we check if the string already exist in the global string cache. Only create new string when it's not in the cache.
 
 ```c
 TString *luaS_new (lua_State *L, const char *str) {
@@ -106,11 +106,11 @@ static TString *createstrobj (lua_State *L, size_t l, int tag, unsigned int h) {
 #define sizelstring(l)  (sizeof(union UTString) + ((l) + 1) * sizeof(char))
 ```
 
-Previously, we've noticed that `TString` does not store string body as a struct member. Where does the string body actually go?
+Previously, we've noticed that `TString` does not store the string body as a struct member. Where does the string body actually go?
 
-When we create a string, we allocate a slice of memory with length `sizelstring(l)`, which is the size of `TString` and the size of string body. This is a technique called *flexible array member*. The technique allows us to store the actual string body in the memory space following the `TString`.
+When we create a string, we allocate a slice of memory with length `sizelstring(l)`, which is the size of `TString` and the size of the string body. This is a technique called *flexible array member*. The technique allows us to store the actual string body in the memory space following the `TString`.
 
-note: C99 standardized [flexible array member syntax](https://en.wikipedia.org/wiki/Flexible_array_member). However, Lua sticked to ISO C for portability.
+note: C99 standardized [flexible array member syntax](https://en.wikipedia.org/wiki/Flexible_array_member). However, Lua stuck to ISO C for portability.
 
 On the other hand, **Short strings** will be stored in the string table  `strt` in the global state because:
 

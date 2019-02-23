@@ -1,8 +1,8 @@
 # Coroutine
 
-**Note**: You might want to have a clear picture about how Lua coroutine works before reading this chapter.
+**Note**: You might want to have a clear picture of how Lua coroutine works before reading this chapter.
 
-Coroutine is one of the most powerful feature of Lua. You can abstract away many convoluted asynchronous, multi-threaded code with clean and simple coroutines.
+Coroutine is one of the most powerful features of Lua. You can abstract away many convoluted asynchronous, multi-threaded code with clean and simple coroutines.
 
 In Lua, a coroutine is actually a `lua_State`, tagged with `LUA_TTHREAD`.
 
@@ -133,7 +133,7 @@ In `auxresume`:
 1. check the arguments
 2. check the state of coroutine
 3. invoke `lua_resume`
-4. if `lua_resume` returned successfully, copy the returned value to caller with `lua_xmove`. If an error is returned, copy the returned error with `lua_xmove`.
+4. if `lua_resume` returned successfully, copy the returned value to the caller with `lua_xmove`. If an error is returned, copy the returned error with `lua_xmove`.
 
 
 ```c

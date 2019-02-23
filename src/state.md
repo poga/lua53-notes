@@ -3,7 +3,7 @@
 
 ## `global_State` and `lua_State`
 
-There are two kind of states a Lua VM keep track of while running: `global_State` and `lua_State`.
+There are two kinds of states a Lua VM keep track of while running: `global_State` and `lua_State`.
 
 Each Lua VM has a `global_State`. It keeps the information about GC metadata, metatables, and string cache.
 
@@ -85,16 +85,16 @@ struct lua_State {
 
 ## Call stack
 
-A call stack is the information of an active subroutines. It's used to keep track of the point to which each subroutine should return control when it finishs executing.
+A call stack contains the information of an active subroutine. It's used to keep track of the point to which each subroutine should return control when it finishes executing.
 
 Here's the figure showing how the stack is related to other Lua objects :
 
 ![](./call_stack.jpeg)
 *source: [Lua 5.3 Bytecode Reference](https://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html)*
 
-While running, Lua vm maintains two stack: a `Callinfo` stack and a `TValue` stack.
+While running, Lua VM maintains two stacks: a `Callinfo` stack and a `TValue` stack.
 
-* The `Callinfo` stack keep tracks of activation frames.
+* The `Callinfo` stack keeps tracks of activation frames.
 * The `TValue` stack stores the data needed by each subroutine, act as registers.
 
 When a new `lua_State` is created, its stack is also initialized:

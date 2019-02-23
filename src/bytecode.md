@@ -1,6 +1,6 @@
 # Bytecode
 
-Lua use a 32-bit register-based instructions with the following possible format:
+Lua uses 32-bit register-based instructions with the following possible format:
 
 ![](./bytecode.png)
 

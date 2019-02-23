@@ -31,7 +31,7 @@ void luaV_execute (lua_State *L) {
 
 The implemented is simple: Fetch the next instruction with `vmfetch` and execute it.
 
-An important detail is that register references such as `RA`, `RB` are based on relative position to the current stack position. Therefore, when stack re-allocation happened, all register pointers need to be invalidated.
+An important detail is that register references, such as `RA` and `RB`, are based on relative position to the current stack position. Therefore, when stack re-allocation happened, all register pointers need to be invalidated.
 
 ```c
 /* fetch an instruction and prepare its execution */

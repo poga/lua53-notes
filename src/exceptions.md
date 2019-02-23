@@ -2,7 +2,7 @@
 
 Exceptions in Lua are emulated with `LUAI_THROW`, `LUAI_TRY`, and `luai_jmpbuf`.
 
-Interestingly, if you compile lua with a C++ compiler, standard C++ exceptions will be used. If a C compiler is used, they will emulated with `setjmp` and `longjmp`.
+Interestingly, if you compile Lua with a C++ compiler, standard C++ exceptions will be used. If a C compiler is used, they will be emulated with `setjmp` and `longjmp`.
 
 ```c
 /*
@@ -40,7 +40,7 @@ Interestingly, if you compile lua with a C++ compiler, standard C++ exceptions w
 #endif							/* } */
 ```
 
-A `errorjmp` is defined in lua state. It's a linked-list for recording a series of jump location of the current error.
+An `errorjmp` is defined in Lua state. It's a linked-list for recording a series of jump location of the current error.
 
 ```
 /* chain list of long jump buffers */

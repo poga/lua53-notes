@@ -1,10 +1,10 @@
 # Functions & Closures
 
-In the source code, Lua Function is called `Closure`. A `Closure` is composed of `proto` and `UpVal`.
+In the source code, Lua Functions are called `Closure`. A `Closure` is composed of `proto` and `UpVal`.
 
-* A `proto` is basically a function not yet binded to `UpVal`.
-* `proto` is generated at compile time. `closure` is generated at runtime.
-* A `proto` can generate multiple `closure`.
+* A `proto` is basically a function not yet bound to `UpVal`.
+* `proto` is generated at compile time. `Closure` is generated at runtime.
+* A `proto` can generate multiple `Closure`.
 
 The definition of `proto`.
 
@@ -72,6 +72,6 @@ typedef union Closure {
 } Closure;
 ```
 
-`CClosure` and `LClosure` both contains its upvalues and ClosureHeader. However, `CClosure` is just a function pointer and doesn't have a `Proto`.
+`CClosure` and `LClosure` both contain its upvalues and ClosureHeader. However, `CClosure` is just a function pointer and doesn't have a `Proto`.
 
-With `ClosureHeader`, `Closure` are also chained together into a linked-list for garbage collection.
+With `ClosureHeader`, closures are also chained together into a linked-list for garbage collection.

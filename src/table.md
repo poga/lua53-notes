@@ -1,6 +1,6 @@
 # Table
 
-In lua, a table is composed by 3 parts: `TKey`, `Node`, and `Table`.
+In lua, a table is composed of 3 parts: `TKey`, `Node`, and `Table`.
 
 ```c
 /*
@@ -35,7 +35,7 @@ typedef struct Table {
 
 A `Table` is built by multiple `Node`. Every `Node` is a pair of `TKey` and `TValue`.
 
-In previous chapter, we know that the definition of `TValue` is:
+In the previous chapter, we know that the definition of `TValue` is:
 
 ```c
 typedef struct lua_TValue {
@@ -49,7 +49,7 @@ In fact, it's for better memory alignment. [The size of a `TValue` can be larger
 
 ## Array part and Hash part
 
-Lua table is notorious for its duality between arrays and hashtables. The duality is also reflected on the implmentation of Table. A quote from the comment in the source code:
+Lua table is notorious for its duality between arrays and hashtables. The duality is also reflected in the implementation of Table. A quote from the comment in the source code:
 
 > Implementation of tables (aka arrays, objects, or hash tables).
 >
@@ -81,26 +81,26 @@ const TValue *luaH_getint (Table *t, lua_Integer key) {
 }
 ```
 
-We can see that if the size of array part is larger than the key, we can return the value stored in the array part directly.
+We can see that if the size of the array part is larger than the key, we can return the value stored in the array part directly.
 
-The design of lua table makes it works like a mix between normal array, sparse array, and hashtable, which makes lua table well-equiped for all kinds of usage pattern.
+The design of Lua table makes it works like a mix between a normal array, sparse array, and hashtable, which makes Lua table well-equipped for all kinds of usage pattern.
 
 
-## Inserting a new key
+## Inserting a New Key
 
-A key can be stored in the array part **or** the hash part. To maintain good performance, it's important to strike a balance between the usage of array part and hash part.
+A key can be stored in the array part **or** the hash part. To maintain good performance, it's important to strike a balance between the usage of the array part and the hash part.
 
 Here's the pseudo code of inserting a new key into a table:
 
 ```
 1. If the new key is a float
-1.1 if the key can be represented as a integer, convert it to integer
-1.2 if the key is NaN, return error
+1.1 if the key can be represented as an integer, convert it to integer
+1.2 if the key is NaN, return an error
 
 2. find the main position of the key
 2.1 if the main position if occupied, check if the occupier is on its main position.
 2.1.1 if the occupier is also on its main position, insert the new key to the free position
-2.1.2 if the occupier is not ot its main position, move the occupier to the free position and free the position we want.
+2.1.2 if the occupier is not on its main position, move the occupier to the free position and free the position we want.
 2.1.3 if there's no free position available, invoke `rehash` to resize both the array part and the hash part.
 ```
 
@@ -166,7 +166,7 @@ TValue *luaH_newkey (lua_State *L, Table *t, const TValue *key) {
 }
 ```
 
-There are many different hashtable implementation in the world. Lua choose [internal chained scatter table with Brent's variation](https://maths-people.anu.edu.au/~brent/pub/pub013.html) for performance and efficiency.
+There are many different hashtable implementations in the world. Lua chooses [internal chained scatter table with Brent's variation](https://maths-people.anu.edu.au/~brent/pub/pub013.html) for performance and efficiency.
 
 To know more about the main position/free position and internal chained scatter table. I recommend you to check the references for more detail:
 
@@ -184,7 +184,7 @@ First, a `nums` array is used to keep track of the number of integer keys in eac
 // nums[i] = number of keys 'k' where 2^(i - 1) < k <= 2^i
 ```
 
-Then, `rehash` try to make sure each part contains about the half of the all integer keys. Here's the pseudo code:
+Then, `rehash` try to make sure the array part part contains at least half of all integer keys. Here's the pseudo code:
 
 ```
 1. count keys in the array part, save to nums

@@ -1,6 +1,6 @@
 # Metatable
 
-When initializing a Lua vm, `LuaT_init` will save all built-in metatable names to the global state `tmname`. These names won't be garbage-collected.
+When initializing a Lua VM, `LuaT_init` will save all built-in metatable names to the global state `tmname`. These names won't be garbage-collected.
 
 ```c
 void luaT_init (lua_State *L) {

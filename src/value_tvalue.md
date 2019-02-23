@@ -16,7 +16,7 @@ typedef union Value {
 } Value;
 ```
 
-Values are categorized into two type: **collectable objects** and **others**. Collectable Objects are subject to garbage collection, others are not.
+Values are categorized into two types: **collectible objects** and **others**. Collectible Objects are subject to garbage collection, others are not.
 
 The definition of `GCObject` is:
 
@@ -40,7 +40,7 @@ struct GCObject {
 };
 ```
 
-`GCObject` are chained together as a linked list. This makes the implementation of mark and sweep much simpler.
+`GCObject` are chained together as a linked list. This makes the implementation of mark-and-sweep much simpler.
 
 Instead of `Value`,  `TValue` is used most of the time. It's just a `Value` and a type tag `tt_`.
 
@@ -65,5 +65,5 @@ typedef struct lua_TValue {
 #define rttype(o)	((o)->tt_)
 ```
 
-The tag `tt_` also indicates whether a value is collectable.
+The tag `tt_` also indicates whether a value is collectible.
 
