@@ -3,5 +3,5 @@
 Build with [mdbook](https://github.com/rust-lang-nursery/mdBook)
 
 ```
-$ mdbook build -d docs/ .
+$ make
 ```

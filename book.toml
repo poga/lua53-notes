@@ -3,3 +3,6 @@ authors = ["Chieh Po"]
 multilingual = false
 src = "src"
 title = "Notes on the Implementation of Lua 5.3"
+
+[output.html]
+google-analytics = "UA-88018665-4"
