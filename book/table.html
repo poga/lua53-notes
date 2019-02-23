@@ -1,0 +1,385 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Table - Notes on the Implementation of Lua 5.3</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body class="light">
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li><a href="data_structure.html"><strong aria-hidden="true">2.</strong> Data Structure</a></li><li><ol class="section"><li><a href="value_tvalue.html"><strong aria-hidden="true">2.1.</strong> Value &amp; TValue</a></li><li><a href="string.html"><strong aria-hidden="true">2.2.</strong> String</a></li><li><a href="table.html" class="active"><strong aria-hidden="true">2.3.</strong> Table</a></li><li><a href="state.html"><strong aria-hidden="true">2.4.</strong> State</a></li><li><a href="bytecode.html"><strong aria-hidden="true">2.5.</strong> Bytecode</a></li><li><a href="function_closure.html"><strong aria-hidden="true">2.6.</strong> Functions &amp; Closures</a></li></ol></li><li><a href="mechanic.html"><strong aria-hidden="true">3.</strong> Mechanic</a></li><li><ol class="section"><li><a href="parsing_compiling.html"><strong aria-hidden="true">3.1.</strong> Parsing &amp; Compiling</a></li><li><a href="interpreter.html"><strong aria-hidden="true">3.2.</strong> Interpreter</a></li><li><a href="coroutine.html"><strong aria-hidden="true">3.3.</strong> Coroutine</a></li><li><a href="metatable.html"><strong aria-hidden="true">3.4.</strong> Metatable</a></li><li><a href="exceptions.html"><strong aria-hidden="true">3.5.</strong> Exceptions</a></li><li><a href="gc.html"><strong aria-hidden="true">3.6.</strong> Garbage Collection</a></li></ol></li><li><a href="others.html"><strong aria-hidden="true">4.</strong> Others</a></li><li><ol class="section"><li><a href="noop_macro.html"><strong aria-hidden="true">4.1.</strong> No-op macro</a></li><li><a href="references.html"><strong aria-hidden="true">4.2.</strong> References</a></li></ol></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">Notes on the Implementation of Lua 5.3</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                            
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="#table" id="table"><h1>Table</h1></a>
+<p>In lua, a table is composed of 3 parts: <code>TKey</code>, <code>Node</code>, and <code>Table</code>.</p>
+<pre><code class="language-c">/*
+** Tables
+*/
+
+typedef union TKey {
+  struct {
+    TValuefields;
+    int next;  /* for chaining (offset for next node) */
+  } nk;
+  TValue tvk;
+} TKey;
+
+typedef struct Node {
+  TValue i_val;
+  TKey i_key;
+} Node;
+
+typedef struct Table {
+  CommonHeader;
+  lu_byte flags;  /* 1&lt;&lt;p means tagmethod(p) is not present */
+  lu_byte lsizenode;  /* log2 of size of 'node' array */
+  unsigned int sizearray;  /* size of 'array' array */
+  TValue *array;  /* array part */
+  Node *node;
+  Node *lastfree;  /* any free position is before this position */
+  struct Table *metatable;
+  GCObject *gclist;
+} Table;
+</code></pre>
+<p>A <code>Table</code> is built by multiple <code>Node</code>. Every <code>Node</code> is a pair of <code>TKey</code> and <code>TValue</code>.</p>
+<p>In the previous chapter, we know that the definition of <code>TValue</code> is:</p>
+<pre><code class="language-c">typedef struct lua_TValue {
+  TValuefields;
+} TValue;
+</code></pre>
+<p>However, this makes <code>TKey</code> looks unnecessarily complex. Why are we making a union on two <code>TValuefields</code>?</p>
+<p>In fact, it's for better memory alignment. <a href="http://lua-users.org/lists/lua-l/2014-02/msg00158.html">The size of a <code>TValue</code> can be larger than the size of its elements</a>. The same technique is also used for Strings.</p>
+<a class="header" href="#array-part-and-hash-part" id="array-part-and-hash-part"><h2>Array part and Hash part</h2></a>
+<p>Lua table is notorious for its duality between arrays and hashtables. The duality is also reflected in the implementation of Table. A quote from the comment in the source code:</p>
+<blockquote>
+<p>Implementation of tables (aka arrays, objects, or hash tables).</p>
+<p>Tables keep its elements in two parts: an array part and a hash part. Non-negative integer keys are all candidates to be kept in the array part. The actual size of the array is the largest 'n' such that more than half the slots between 1 and n are in use. Hash uses a mix of chained scatter table with Brent's variation. A main invariant of these tables is that, if an element is not in its main position (i.e. the 'original' position that its hash gives to it), then the colliding element is in its own main position. Hence even when the load factor reaches 100%, performance remains good.</p>
+</blockquote>
+<p>The <strong>array part</strong> is for optimizing integer keys in the table. The rest of the keys is stored in the <strong>hash part</strong>. For example, if we want to look up for a integer key in a table:</p>
+<pre><code class="language-c">/*
+** search function for integers
+*/
+const TValue *luaH_getint (Table *t, lua_Integer key) {
+  /* (1 &lt;= key &amp;&amp; key &lt;= t-&gt;sizearray) */
+  if (l_castS2U(key) - 1 &lt; t-&gt;sizearray)
+    return &amp;t-&gt;array[key - 1];
+  else {
+    Node *n = hashint(t, key);
+    for (;;) {  /* check whether 'key' is somewhere in the chain */
+      if (ttisinteger(gkey(n)) &amp;&amp; ivalue(gkey(n)) == key)
+        return gval(n);  /* that's it */
+      else {
+        int nx = gnext(n);
+        if (nx == 0) break;
+        n += nx;
+      }
+    }
+    return luaO_nilobject;
+  }
+}
+</code></pre>
+<p>We can see that if the size of the array part is larger than the key, we can return the value stored in the array part directly.</p>
+<p>The design of Lua table makes it works like a mix between a normal array, sparse array, and hashtable, which makes Lua table well-equipped for all kinds of usage pattern.</p>
+<a class="header" href="#inserting-a-new-key" id="inserting-a-new-key"><h2>Inserting a New Key</h2></a>
+<p>A key can be stored in the array part <strong>or</strong> the hash part. To maintain good performance, it's important to strike a balance between the usage of the array part and the hash part.</p>
+<p>Here's the pseudo code of inserting a new key into a table:</p>
+<pre><code>1. If the new key is a float
+1.1 if the key can be represented as an integer, convert it to integer
+1.2 if the key is NaN, return an error
+
+2. find the main position of the key
+2.1 if the main position if occupied, check if the occupier is on its main position.
+2.1.1 if the occupier is also on its main position, insert the new key to the free position
+2.1.2 if the occupier is not on its main position, move the occupier to the free position and free the position we want.
+2.1.3 if there's no free position available, invoke `rehash` to resize both the array part and the hash part.
+</code></pre>
+<p>And the code is:</p>
+<pre><code class="language-c">/*
+** inserts a new key into a hash table; first, check whether key's main
+** position is free. If not, check whether colliding node is in its main
+** position or not: if it is not, move colliding node to an empty place and
+** put new key in its main position; otherwise (colliding node is in its main
+** position), new key goes to an empty position.
+*/
+TValue *luaH_newkey (lua_State *L, Table *t, const TValue *key) {
+  Node *mp;
+  TValue aux;
+  if (ttisnil(key)) luaG_runerror(L, &quot;table index is nil&quot;);
+  else if (ttisfloat(key)) {
+    lua_Integer k;
+    if (luaV_tointeger(key, &amp;k, 0)) {  /* does index fit in an integer? */
+      setivalue(&amp;aux, k);
+      key = &amp;aux;  /* insert it as an integer */
+    }
+    else if (luai_numisnan(fltvalue(key)))
+      luaG_runerror(L, &quot;table index is NaN&quot;);
+  }
+  mp = mainposition(t, key);
+  if (!ttisnil(gval(mp)) || isdummy(t)) {  /* main position is taken? */
+    Node *othern;
+    Node *f = getfreepos(t);  /* get a free place */
+    if (f == NULL) {  /* cannot find a free place? */
+      rehash(L, t, key);  /* grow table */
+      /* whatever called 'newkey' takes care of TM cache */
+      return luaH_set(L, t, key);  /* insert key into grown table */
+    }
+    lua_assert(!isdummy(t));
+    othern = mainposition(t, gkey(mp));
+    if (othern != mp) {  /* is colliding node out of its main position? */
+      /* yes; move colliding node into free position */
+      while (othern + gnext(othern) != mp)  /* find previous */
+        othern += gnext(othern);
+      gnext(othern) = cast_int(f - othern);  /* rechain to point to 'f' */
+      *f = *mp;  /* copy colliding node into free pos. (mp-&gt;next also goes) */
+      if (gnext(mp) != 0) {
+        gnext(f) += cast_int(mp - f);  /* correct 'next' */
+        gnext(mp) = 0;  /* now 'mp' is free */
+      }
+      setnilvalue(gval(mp));
+    }
+    else {  /* colliding node is in its own main position */
+      /* new node will go into free position */
+      if (gnext(mp) != 0)
+        gnext(f) = cast_int((mp + gnext(mp)) - f);  /* chain new position */
+      else lua_assert(gnext(f) == 0);
+      gnext(mp) = cast_int(f - mp);
+      mp = f;
+    }
+  }
+  setnodekey(L, &amp;mp-&gt;i_key, key);
+  luaC_barrierback(L, t, key);
+  lua_assert(ttisnil(gval(mp)));
+  return gval(mp);
+}
+</code></pre>
+<p>There are many different hashtable implementations in the world. Lua chooses <a href="https://maths-people.anu.edu.au/%7Ebrent/pub/pub013.html">internal chained scatter table with Brent's variation</a> for performance and efficiency.</p>
+<p>To know more about the main position/free position and internal chained scatter table. I recommend you to check the references for more detail:</p>
+<ul>
+<li><a href="http://blog.reverberate.org/2009/02/art-of-hashing.html">The art of hashing</a></li>
+<li><a href="https://maths-people.anu.edu.au/%7Ebrent/pub/pub013.html">R. P. Brent, Reducing the retrieval time of scatter storage techniques, Communications of the ACM 16 (1973), 105-109.</a></li>
+</ul>
+<a class="header" href="#balancing-between-the-array-part-and-the-hash-part" id="balancing-between-the-array-part-and-the-hash-part"><h2>Balancing between the array part and the hash part</h2></a>
+<p>Finally, let's see the implement of <code>rehash</code>. <code>rehash</code> is responsible for keeping the balance between the array part and the hash part. The design is pretty simple and efficient.</p>
+<p>First, a <code>nums</code> array is used to keep track of the number of integer keys in each interval <code>i</code>.</p>
+<pre><code class="language-c">// nums[i] = number of keys 'k' where 2^(i - 1) &lt; k &lt;= 2^i
+</code></pre>
+<p>Then, <code>rehash</code> try to make sure the array part part contains at least half of all integer keys. Here's the pseudo code:</p>
+<pre><code>1. count keys in the array part, save to nums
+2. count integer keys in the hash part, save to nums
+3. count the number of non-interger keys
+4. Find out the `nums` interval which contains half of the total keys, resize array part to fit the interval, the rest goes to the hash part.
+</code></pre>
+<p>and the actual implementation:</p>
+<pre><code class="language-c">/*
+** nums[i] = number of keys 'k' where 2^(i - 1) &lt; k &lt;= 2^i
+*/
+static void rehash (lua_State *L, Table *t, const TValue *ek) {
+  unsigned int asize;  /* optimal size for array part */
+  unsigned int na;  /* number of keys in the array part */
+  unsigned int nums[MAXABITS + 1];
+  int i;
+  int totaluse;
+  for (i = 0; i &lt;= MAXABITS; i++) nums[i] = 0;  /* reset counts */
+  na = numusearray(t, nums);  /* count keys in array part */
+  totaluse = na;  /* all those keys are integer keys */
+  totaluse += numusehash(t, nums, &amp;na);  /* count keys in hash part */
+  /* count extra key */
+  na += countint(ek, nums);
+  totaluse++;
+  /* compute new size for array part */
+  asize = computesizes(nums, &amp;na);
+  /* resize the table to new computed sizes */
+  luaH_resize(L, t, asize, totaluse - na);
+}
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="string.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="state.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a href="string.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="state.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

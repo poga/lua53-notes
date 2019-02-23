@@ -1,0 +1,307 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Metatable - Notes on the Implementation of Lua 5.3</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body class="light">
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li><a href="data_structure.html"><strong aria-hidden="true">2.</strong> Data Structure</a></li><li><ol class="section"><li><a href="value_tvalue.html"><strong aria-hidden="true">2.1.</strong> Value &amp; TValue</a></li><li><a href="string.html"><strong aria-hidden="true">2.2.</strong> String</a></li><li><a href="table.html"><strong aria-hidden="true">2.3.</strong> Table</a></li><li><a href="state.html"><strong aria-hidden="true">2.4.</strong> State</a></li><li><a href="bytecode.html"><strong aria-hidden="true">2.5.</strong> Bytecode</a></li><li><a href="function_closure.html"><strong aria-hidden="true">2.6.</strong> Functions &amp; Closures</a></li></ol></li><li><a href="mechanic.html"><strong aria-hidden="true">3.</strong> Mechanic</a></li><li><ol class="section"><li><a href="parsing_compiling.html"><strong aria-hidden="true">3.1.</strong> Parsing &amp; Compiling</a></li><li><a href="interpreter.html"><strong aria-hidden="true">3.2.</strong> Interpreter</a></li><li><a href="coroutine.html"><strong aria-hidden="true">3.3.</strong> Coroutine</a></li><li><a href="metatable.html" class="active"><strong aria-hidden="true">3.4.</strong> Metatable</a></li><li><a href="exceptions.html"><strong aria-hidden="true">3.5.</strong> Exceptions</a></li><li><a href="gc.html"><strong aria-hidden="true">3.6.</strong> Garbage Collection</a></li></ol></li><li><a href="others.html"><strong aria-hidden="true">4.</strong> Others</a></li><li><ol class="section"><li><a href="noop_macro.html"><strong aria-hidden="true">4.1.</strong> No-op macro</a></li><li><a href="references.html"><strong aria-hidden="true">4.2.</strong> References</a></li></ol></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">Notes on the Implementation of Lua 5.3</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                            
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="#metatable" id="metatable"><h1>Metatable</h1></a>
+<p>When initializing a Lua VM, <code>LuaT_init</code> will save all built-in metatable names to the global state <code>tmname</code>. These names won't be garbage-collected.</p>
+<pre><code class="language-c">void luaT_init (lua_State *L) {
+  static const char *const luaT_eventname[] = {  /* ORDER TM */
+    &quot;__index&quot;, &quot;__newindex&quot;,
+    &quot;__gc&quot;, &quot;__mode&quot;, &quot;__len&quot;, &quot;__eq&quot;,
+    &quot;__add&quot;, &quot;__sub&quot;, &quot;__mul&quot;, &quot;__mod&quot;, &quot;__pow&quot;,
+    &quot;__div&quot;, &quot;__idiv&quot;,
+    &quot;__band&quot;, &quot;__bor&quot;, &quot;__bxor&quot;, &quot;__shl&quot;, &quot;__shr&quot;,
+    &quot;__unm&quot;, &quot;__bnot&quot;, &quot;__lt&quot;, &quot;__le&quot;,
+    &quot;__concat&quot;, &quot;__call&quot;
+  };
+  int i;
+  for (i=0; i&lt;TM_N; i++) {
+    G(L)-&gt;tmname[i] = luaS_new(L, luaT_eventname[i]);
+    luaC_fix(L, obj2gco(G(L)-&gt;tmname[i]));  /* never collect these names */
+  }
+}
+</code></pre>
+<p>We can find metamethods of a given object with <code>luaT_gettmbyobject</code>. If the object is not a table or userdata, <code>luaT_gettmbyobject</code> will search directly from the global state metatable <code>mt</code>.</p>
+<p>The real search work is in <code>luaT_gettm</code>. It will also cache the result to the object.</p>
+<pre><code class="language-c">/*
+** function to be used with macro &quot;fasttm&quot;: optimized for absence of
+** tag methods
+*/
+const TValue *luaT_gettm (Table *events, TMS event, TString *ename) {
+  const TValue *tm = luaH_getshortstr(events, ename);
+  lua_assert(event &lt;= TM_EQ);
+  if (ttisnil(tm)) {  /* no tag method? */
+    events-&gt;flags |= cast_byte(1u&lt;&lt;event);  /* cache this fact */
+    return NULL;
+  }
+  else return tm;
+}
+
+#define gfasttm(g,et,e) ((et) == NULL ? NULL : \
+  ((et)-&gt;flags &amp; (1u&lt;&lt;(e))) ? NULL : luaT_gettm(et, e, (g)-&gt;tmname[e]))
+
+#define fasttm(l,et,e)	gfasttm(G(l), et, e)
+
+
+const TValue *luaT_gettmbyobj (lua_State *L, const TValue *o, TMS event) {
+  Table *mt;
+  switch (ttnov(o)) {
+    case LUA_TTABLE:
+      mt = hvalue(o)-&gt;metatable;
+      break;
+    case LUA_TUSERDATA:
+      mt = uvalue(o)-&gt;metatable;
+      break;
+    default:
+      mt = G(L)-&gt;mt[ttnov(o)];
+  }
+  return (mt ? luaH_getshortstr(mt, G(L)-&gt;tmname[event]) : luaO_nilobject);
+}
+
+</code></pre>
+<p>Let's take a look at an example of how we actually use metamethod <code>__index</code>:</p>
+<pre><code class="language-c">/*
+** Finish the table access 'val = t[key]'.
+** if 'slot' is NULL, 't' is not a table; otherwise, 'slot' points to
+** t[k] entry (which must be nil).
+*/
+void luaV_finishget (lua_State *L, const TValue *t, TValue *key, StkId val,
+                      const TValue *slot) {
+  int loop;  /* counter to avoid infinite loops */
+  const TValue *tm;  /* metamethod */
+  for (loop = 0; loop &lt; MAXTAGLOOP; loop++) {
+    if (slot == NULL) {  /* 't' is not a table? */
+      lua_assert(!ttistable(t));
+      tm = luaT_gettmbyobj(L, t, TM_INDEX);
+      if (ttisnil(tm))
+        luaG_typeerror(L, t, &quot;index&quot;);  /* no metamethod */
+      /* else will try the metamethod */
+    }
+    else {  /* 't' is a table */
+      lua_assert(ttisnil(slot));
+      tm = fasttm(L, hvalue(t)-&gt;metatable, TM_INDEX);  /* table's metamethod */
+      if (tm == NULL) {  /* no metamethod? */
+        setnilvalue(val);  /* result is nil */
+        return;
+      }
+      /* else will try the metamethod */
+    }
+    if (ttisfunction(tm)) {  /* is metamethod a function? */
+      luaT_callTM(L, tm, t, key, val, 1);  /* call it */
+      return;
+    }
+    t = tm;  /* else try to access 'tm[key]' */
+    if (luaV_fastget(L,t,key,slot,luaH_get)) {  /* fast track? */
+      setobj2s(L, val, slot);  /* done */
+      return;
+    }
+    /* else repeat (tail call 'luaV_finishget') */
+  }
+  luaG_runerror(L, &quot;'__index' chain too long; possible loop&quot;);
+}
+</code></pre>
+<p><code>luaV_finishget</code> will look for <code>__index</code> metamethod recursively through the metatables:</p>
+<ol>
+<li>If a function is found, call it with <code>luaT_callTM</code>.</li>
+<li>If a table is found, recursively search it with tail call <code>luaV_finishget</code>.</li>
+<li>The maximum number of iteration is limited by <code>MAXTAGLOOP</code>.</li>
+</ol>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="coroutine.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="exceptions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a href="coroutine.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="exceptions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

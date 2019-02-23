@@ -1,0 +1,417 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Coroutine - Notes on the Implementation of Lua 5.3</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body class="light">
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li><a href="data_structure.html"><strong aria-hidden="true">2.</strong> Data Structure</a></li><li><ol class="section"><li><a href="value_tvalue.html"><strong aria-hidden="true">2.1.</strong> Value &amp; TValue</a></li><li><a href="string.html"><strong aria-hidden="true">2.2.</strong> String</a></li><li><a href="table.html"><strong aria-hidden="true">2.3.</strong> Table</a></li><li><a href="state.html"><strong aria-hidden="true">2.4.</strong> State</a></li><li><a href="bytecode.html"><strong aria-hidden="true">2.5.</strong> Bytecode</a></li><li><a href="function_closure.html"><strong aria-hidden="true">2.6.</strong> Functions &amp; Closures</a></li></ol></li><li><a href="mechanic.html"><strong aria-hidden="true">3.</strong> Mechanic</a></li><li><ol class="section"><li><a href="parsing_compiling.html"><strong aria-hidden="true">3.1.</strong> Parsing &amp; Compiling</a></li><li><a href="interpreter.html"><strong aria-hidden="true">3.2.</strong> Interpreter</a></li><li><a href="coroutine.html" class="active"><strong aria-hidden="true">3.3.</strong> Coroutine</a></li><li><a href="metatable.html"><strong aria-hidden="true">3.4.</strong> Metatable</a></li><li><a href="exceptions.html"><strong aria-hidden="true">3.5.</strong> Exceptions</a></li><li><a href="gc.html"><strong aria-hidden="true">3.6.</strong> Garbage Collection</a></li></ol></li><li><a href="others.html"><strong aria-hidden="true">4.</strong> Others</a></li><li><ol class="section"><li><a href="noop_macro.html"><strong aria-hidden="true">4.1.</strong> No-op macro</a></li><li><a href="references.html"><strong aria-hidden="true">4.2.</strong> References</a></li></ol></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">Notes on the Implementation of Lua 5.3</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                            
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="#coroutine" id="coroutine"><h1>Coroutine</h1></a>
+<p><strong>Note</strong>: You might want to have a clear picture of how Lua coroutine works before reading this chapter.</p>
+<p>Coroutine is one of the most powerful features of Lua. You can abstract away many convoluted asynchronous, multi-threaded code with clean and simple coroutines.</p>
+<p>In Lua, a coroutine is actually a <code>lua_State</code>, tagged with <code>LUA_TTHREAD</code>.</p>
+<pre><code class="language-c">LUA_API lua_State *lua_newthread (lua_State *L) {
+  global_State *g = G(L);
+  lua_State *L1;
+  lua_lock(L);
+  luaC_checkGC(L);
+  /* create new thread */
+  L1 = &amp;cast(LX *, luaM_newobject(L, LUA_TTHREAD, sizeof(LX)))-&gt;l;
+  L1-&gt;marked = luaC_white(g);
+  L1-&gt;tt = LUA_TTHREAD;
+  /* link it on list 'allgc' */
+  L1-&gt;next = g-&gt;allgc;
+  g-&gt;allgc = obj2gco(L1);
+  /* anchor it on L stack */
+  setthvalue(L, L-&gt;top, L1);
+  api_incr_top(L);
+  preinit_thread(L1, g);
+  L1-&gt;hookmask = L-&gt;hookmask;
+  L1-&gt;basehookcount = L-&gt;basehookcount;
+  L1-&gt;hook = L-&gt;hook;
+  resethookcount(L1);
+  /* initialize L1 extra space */
+  memcpy(lua_getextraspace(L1), lua_getextraspace(g-&gt;mainthread),
+         LUA_EXTRASPACE);
+  luai_userstatethread(L, L1);
+  stack_init(L1, L);  /* init stack */
+  lua_unlock(L);
+  return L1;
+}
+</code></pre>
+<a class="header" href="#creating-a-coroutine" id="creating-a-coroutine"><h2>Creating a coroutine</h2></a>
+<p>Since <code>lua_State</code> is an encapsulated environment, we need a way to pass data between <code>lua_State</code>s, just like how we pass data in Lua between coroutines.</p>
+<p>The data passing is achieved with <code>lua_xmove</code>. It just simply copy <code>n</code> values on the stack from <code>from</code> to <code>to</code>.</p>
+<pre><code class="language-c">LUA_API void lua_xmove (lua_State *from, lua_State *to, int n) {
+  int i;
+  if (from == to) return;
+  lua_lock(to);
+  api_checknelems(from, n);
+  api_check(from, G(from) == G(to), &quot;moving among independent states&quot;);
+  api_check(from, to-&gt;ci-&gt;top - to-&gt;top &gt;= n, &quot;stack overflow&quot;);
+  from-&gt;top -= n;
+  for (i = 0; i &lt; n; i++) {
+    setobj2s(to, to-&gt;top, from-&gt;top + i);
+    to-&gt;top++;  /* stack already checked by previous 'api_check' */
+  }
+  lua_unlock(to);
+}
+</code></pre>
+<p>We can create a coroutine with <code>luaB_create</code>. It works as follows:</p>
+<ol>
+<li>Make sure the value on the top of the stack is a function.</li>
+<li>create a new thread <code>NL</code>.</li>
+<li>Since the top of the stack is now <code>NL</code>, put the function back to the top.</li>
+<li>copy the function to <code>NL</code> with <code>lua_xmove</code>.</li>
+</ol>
+<pre><code class="language-c">static int luaB_cocreate (lua_State *L) {
+  lua_State *NL;
+  luaL_checktype(L, 1, LUA_TFUNCTION);
+  NL = lua_newthread(L);
+  lua_pushvalue(L, 1);  /* move function to top */
+  lua_xmove(L, NL, 1);  /* move function from L to NL */
+  return 1;
+}
+</code></pre>
+<a class="header" href="#running-a-coroutine" id="running-a-coroutine"><h2>Running a coroutine</h2></a>
+<p>It takes four functions to run a coroutine: <code>luaB_coresume</code>, <code>auxresume</code>, <code>lua_resume</code>, and finally <code>resume</code>.</p>
+<pre><code class="language-c">static int luaB_coresume (lua_State *L) {
+  lua_State *co = getco(L);
+  int r;
+  r = auxresume(L, co, lua_gettop(L) - 1);
+  if (r &lt; 0) {
+    lua_pushboolean(L, 0);
+    lua_insert(L, -2);
+    return 2;  /* return false + error message */
+  }
+  else {
+    lua_pushboolean(L, 1);
+    lua_insert(L, -(r + 1));
+    return r + 1;  /* return true + 'resume' returns */
+  }
+}
+
+static int auxresume (lua_State *L, lua_State *co, int narg) {
+  int status;
+  if (!lua_checkstack(co, narg)) {
+    lua_pushliteral(L, &quot;too many arguments to resume&quot;);
+    return -1;  /* error flag */
+  }
+  if (lua_status(co) == LUA_OK &amp;&amp; lua_gettop(co) == 0) {
+    lua_pushliteral(L, &quot;cannot resume dead coroutine&quot;);
+    return -1;  /* error flag */
+  }
+  lua_xmove(L, co, narg);
+  status = lua_resume(co, L, narg);
+  if (status == LUA_OK || status == LUA_YIELD) {
+    int nres = lua_gettop(co);
+    if (!lua_checkstack(L, nres + 1)) {
+      lua_pop(co, nres);  /* remove results anyway */
+      lua_pushliteral(L, &quot;too many results to resume&quot;);
+      return -1;  /* error flag */
+    }
+    lua_xmove(co, L, nres);  /* move yielded values */
+    return nres;
+  }
+  else {
+    lua_xmove(co, L, 1);  /* move error message */
+    return -1;  /* error flag */
+  }
+}
+</code></pre>
+<p>In <code>auxresume</code>:</p>
+<ol>
+<li>check the arguments</li>
+<li>check the state of coroutine</li>
+<li>invoke <code>lua_resume</code></li>
+<li>if <code>lua_resume</code> returned successfully, copy the returned value to the caller with <code>lua_xmove</code>. If an error is returned, copy the returned error with <code>lua_xmove</code>.</li>
+</ol>
+<pre><code class="language-c">// ldo.c
+LUA_API int lua_resume (lua_State *L, lua_State *from, int nargs) {
+  int status;
+  unsigned short oldnny = L-&gt;nny;  /* save &quot;number of non-yieldable&quot; calls */
+  lua_lock(L);
+  if (L-&gt;status == LUA_OK) {  /* may be starting a coroutine */
+    if (L-&gt;ci != &amp;L-&gt;base_ci)  /* not in base level? */
+      return resume_error(L, &quot;cannot resume non-suspended coroutine&quot;, nargs);
+  }
+  else if (L-&gt;status != LUA_YIELD)
+    return resume_error(L, &quot;cannot resume dead coroutine&quot;, nargs);
+  L-&gt;nCcalls = (from) ? from-&gt;nCcalls + 1 : 1;
+  if (L-&gt;nCcalls &gt;= LUAI_MAXCCALLS)
+    return resume_error(L, &quot;C stack overflow&quot;, nargs);
+  luai_userstateresume(L, nargs);
+  L-&gt;nny = 0;  /* allow yields */
+  api_checknelems(L, (L-&gt;status == LUA_OK) ? nargs + 1 : nargs);
+  status = luaD_rawrunprotected(L, resume, &amp;nargs);
+  if (status == -1)  /* error calling 'lua_resume'? */
+    status = LUA_ERRRUN;
+  else {  /* continue running after recoverable errors */
+    while (errorstatus(status) &amp;&amp; recover(L, status)) {
+      /* unroll continuation */
+      status = luaD_rawrunprotected(L, unroll, &amp;status);
+    }
+    if (errorstatus(status)) {  /* unrecoverable error? */
+      L-&gt;status = cast_byte(status);  /* mark thread as 'dead' */
+      seterrorobj(L, status, L-&gt;top);  /* push error message */
+      L-&gt;ci-&gt;top = L-&gt;top;
+    }
+    else lua_assert(status == L-&gt;status);  /* normal end or yield */
+  }
+  L-&gt;nny = oldnny;  /* restore 'nny' */
+  L-&gt;nCcalls--;
+  lua_assert(L-&gt;nCcalls == ((from) ? from-&gt;nCcalls : 0));
+  lua_unlock(L);
+  return status;
+}
+
+/*
+** Do the work for 'lua_resume' in protected mode. Most of the work
+** depends on the status of the coroutine: initial state, suspended
+** inside a hook, or regularly suspended (optionally with a continuation
+** function), plus erroneous cases: non-suspended coroutine or dead
+** coroutine.
+*/
+static void resume (lua_State *L, void *ud) {
+  int n = *(cast(int*, ud));  /* number of arguments */
+  StkId firstArg = L-&gt;top - n;  /* first argument */
+  CallInfo *ci = L-&gt;ci;
+  if (L-&gt;status == LUA_OK) {  /* starting a coroutine? */
+    if (!luaD_precall(L, firstArg - 1, LUA_MULTRET))  /* Lua function? */
+      luaV_execute(L);  /* call it */
+  }
+  else {  /* resuming from previous yield */
+    lua_assert(L-&gt;status == LUA_YIELD);
+    L-&gt;status = LUA_OK;  /* mark that it is running (again) */
+    ci-&gt;func = restorestack(L, ci-&gt;extra);
+    if (isLua(ci))  /* yielded inside a hook? */
+      luaV_execute(L);  /* just continue running Lua code */
+    else {  /* 'common' yield */
+      if (ci-&gt;u.c.k != NULL) {  /* does it have a continuation function? */
+        lua_unlock(L);
+        n = (*ci-&gt;u.c.k)(L, LUA_YIELD, ci-&gt;u.c.ctx); /* call continuation */
+        lua_lock(L);
+        api_checknelems(L, n);
+        firstArg = L-&gt;top - n;  /* yield results come from continuation */
+      }
+      luaD_poscall(L, ci, firstArg, n);  /* finish 'luaD_precall' */
+    }
+    unroll(L, NULL);  /* run continuation */
+  }
+}
+</code></pre>
+<p>The real detail is in the <code>resume</code> function. It's pretty much the same as invoking a function:</p>
+<ul>
+<li>If the coroutine is brand new, invoke <code>luaD_precall</code> to prepare the function.
+<ul>
+<li>invoke the function with <code>luaV_execute</code>.</li>
+</ul>
+</li>
+<li>If the coroutine is being resumed
+<ul>
+<li>If we're inside a hook, execute it (to preserve the context of the hook?).</li>
+<li>If it's a normal resume, check whether there's a continuation function.
+<ul>
+<li>if yes (it's a C function), resume from the continuation point <code>K</code> and yield the result.</li>
+</ul>
+</li>
+<li>finished the <code>luaD_precall</code> with <code>luaD_poscall</code>.</li>
+<li><code>unroll</code> the rest and run the continuation.</li>
+</ul>
+</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="interpreter.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="metatable.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a href="interpreter.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="metatable.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

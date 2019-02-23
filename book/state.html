@@ -1,0 +1,332 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>State - Notes on the Implementation of Lua 5.3</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body class="light">
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li><a href="data_structure.html"><strong aria-hidden="true">2.</strong> Data Structure</a></li><li><ol class="section"><li><a href="value_tvalue.html"><strong aria-hidden="true">2.1.</strong> Value &amp; TValue</a></li><li><a href="string.html"><strong aria-hidden="true">2.2.</strong> String</a></li><li><a href="table.html"><strong aria-hidden="true">2.3.</strong> Table</a></li><li><a href="state.html" class="active"><strong aria-hidden="true">2.4.</strong> State</a></li><li><a href="bytecode.html"><strong aria-hidden="true">2.5.</strong> Bytecode</a></li><li><a href="function_closure.html"><strong aria-hidden="true">2.6.</strong> Functions &amp; Closures</a></li></ol></li><li><a href="mechanic.html"><strong aria-hidden="true">3.</strong> Mechanic</a></li><li><ol class="section"><li><a href="parsing_compiling.html"><strong aria-hidden="true">3.1.</strong> Parsing &amp; Compiling</a></li><li><a href="interpreter.html"><strong aria-hidden="true">3.2.</strong> Interpreter</a></li><li><a href="coroutine.html"><strong aria-hidden="true">3.3.</strong> Coroutine</a></li><li><a href="metatable.html"><strong aria-hidden="true">3.4.</strong> Metatable</a></li><li><a href="exceptions.html"><strong aria-hidden="true">3.5.</strong> Exceptions</a></li><li><a href="gc.html"><strong aria-hidden="true">3.6.</strong> Garbage Collection</a></li></ol></li><li><a href="others.html"><strong aria-hidden="true">4.</strong> Others</a></li><li><ol class="section"><li><a href="noop_macro.html"><strong aria-hidden="true">4.1.</strong> No-op macro</a></li><li><a href="references.html"><strong aria-hidden="true">4.2.</strong> References</a></li></ol></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">Notes on the Implementation of Lua 5.3</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                            
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="#state" id="state"><h1>State</h1></a>
+<a class="header" href="#global_state-and-lua_state" id="global_state-and-lua_state"><h2><code>global_State</code> and <code>lua_State</code></h2></a>
+<p>There are two kinds of states a Lua VM keep track of while running: <code>global_State</code> and <code>lua_State</code>.</p>
+<p>Each Lua VM has a <code>global_State</code>. It keeps the information about GC metadata, metatables, and string cache.</p>
+<pre><code class="language-c">/*
+** 'global state', shared by all threads of this state
+*/
+typedef struct global_State {
+  lua_Alloc frealloc;  /* function to reallocate memory */
+  void *ud;         /* auxiliary data to 'frealloc' */
+  l_mem totalbytes;  /* number of bytes currently allocated - GCdebt */
+  l_mem GCdebt;  /* bytes allocated not yet compensated by the collector */
+  lu_mem GCmemtrav;  /* memory traversed by the GC */
+  lu_mem GCestimate;  /* an estimate of the non-garbage memory in use */
+  stringtable strt;  /* hash table for strings */
+  TValue l_registry;
+  unsigned int seed;  /* randomized seed for hashes */
+  lu_byte currentwhite;
+  lu_byte gcstate;  /* state of garbage collector */
+  lu_byte gckind;  /* kind of GC running */
+  lu_byte gcrunning;  /* true if GC is running */
+  GCObject *allgc;  /* list of all collectable objects */
+  GCObject **sweepgc;  /* current position of sweep in list */
+  GCObject *finobj;  /* list of collectable objects with finalizers */
+  GCObject *gray;  /* list of gray objects */
+  GCObject *grayagain;  /* list of objects to be traversed atomically */
+  GCObject *weak;  /* list of tables with weak values */
+  GCObject *ephemeron;  /* list of ephemeron tables (weak keys) */
+  GCObject *allweak;  /* list of all-weak tables */
+  GCObject *tobefnz;  /* list of userdata to be GC */
+  GCObject *fixedgc;  /* list of objects not to be collected */
+  struct lua_State *twups;  /* list of threads with open upvalues */
+  unsigned int gcfinnum;  /* number of finalizers to call in each GC step */
+  int gcpause;  /* size of pause between successive GCs */
+  int gcstepmul;  /* GC 'granularity' */
+  lua_CFunction panic;  /* to be called in unprotected errors */
+  struct lua_State *mainthread;
+  const lua_Number *version;  /* pointer to version number */
+  TString *memerrmsg;  /* memory-error message */
+  TString *tmname[TM_N];  /* array with tag-method names */
+  struct Table *mt[LUA_NUMTAGS];  /* metatables for basic types */
+  TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */
+} global_State;
+</code></pre>
+<p>On the other hand, <code>lua_State</code> correspond to a Lua thread. The call stack of a given thread is also included in the corresponding <code>lua_State</code>.</p>
+<pre><code class="language-c">/*
+** 'per thread' state
+*/
+struct lua_State {
+  CommonHeader;
+  unsigned short nci;  /* number of items in 'ci' list */
+  lu_byte status;
+  StkId top;  /* first free slot in the stack */
+  global_State *l_G;
+  CallInfo *ci;  /* call info for current function */
+  const Instruction *oldpc;  /* last pc traced */
+  StkId stack_last;  /* last free slot in the stack */
+  StkId stack;  /* stack base */
+  UpVal *openupval;  /* list of open upvalues in this stack */
+  GCObject *gclist;
+  struct lua_State *twups;  /* list of threads with open upvalues */
+  struct lua_longjmp *errorJmp;  /* current error recover point */
+  CallInfo base_ci;  /* CallInfo for first level (C calling Lua) */
+  volatile lua_Hook hook;
+  ptrdiff_t errfunc;  /* current error handling function (stack index) */
+  int stacksize;
+  int basehookcount;
+  int hookcount;
+  unsigned short nny;  /* number of non-yieldable calls in stack */
+  unsigned short nCcalls;  /* number of nested C calls */
+  l_signalT hookmask;
+  lu_byte allowhook;
+};
+</code></pre>
+<a class="header" href="#call-stack" id="call-stack"><h2>Call stack</h2></a>
+<p>A call stack contains the information of an active subroutine. It's used to keep track of the point to which each subroutine should return control when it finishes executing.</p>
+<p>Here's the figure showing how the stack is related to other Lua objects :</p>
+<p><img src="./call_stack.jpeg" alt="" />
+<em>source: <a href="https://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html">Lua 5.3 Bytecode Reference</a></em></p>
+<p>While running, Lua VM maintains two stacks: a <code>Callinfo</code> stack and a <code>TValue</code> stack.</p>
+<ul>
+<li>The <code>Callinfo</code> stack keeps tracks of activation frames.</li>
+<li>The <code>TValue</code> stack stores the data needed by each subroutine, act as registers.</li>
+</ul>
+<p>When a new <code>lua_State</code> is created, its stack is also initialized:</p>
+<pre><code class="language-c">static void stack_init (lua_State *L1, lua_State *L) {
+  int i; CallInfo *ci;
+  /* initialize stack array */
+  L1-&gt;stack = luaM_newvector(L, BASIC_STACK_SIZE, TValue);
+  L1-&gt;stacksize = BASIC_STACK_SIZE;
+  for (i = 0; i &lt; BASIC_STACK_SIZE; i++)
+    setnilvalue(L1-&gt;stack + i);  /* erase new stack */
+  L1-&gt;top = L1-&gt;stack;
+  L1-&gt;stack_last = L1-&gt;stack + L1-&gt;stacksize - EXTRA_STACK;
+  /* initialize first ci */
+  ci = &amp;L1-&gt;base_ci;
+  ci-&gt;next = ci-&gt;previous = NULL;
+  ci-&gt;callstatus = 0;
+  ci-&gt;func = L1-&gt;top;
+  setnilvalue(L1-&gt;top++);  /* 'function' entry for this 'ci' */
+  ci-&gt;top = L1-&gt;top + LUA_MINSTACK;
+  L1-&gt;ci = ci;
+}
+</code></pre>
+<ol>
+<li>A <code>TValue</code> array is initialized with length <code>BASIC_STACK_SIZE</code>, filled with <code>nil</code>.</li>
+<li>A <code>Callinfo</code> is created and pointed to the first frame in the <code>TValue</code> stack.</li>
+</ol>
+<p>Here's the definition of <code>Callstack</code>:</p>
+<pre><code class="language-c">typedef struct CallInfo {
+  StkId func;  /* function index in the stack */
+  StkId	top;  /* top for this function */
+  struct CallInfo *previous, *next;  /* dynamic call link */
+  union {
+    struct {  /* only for Lua functions */
+      StkId base;  /* base for this function */
+      const Instruction *savedpc;
+    } l;
+    struct {  /* only for C functions */
+      lua_KFunction k;  /* continuation in case of yields */
+      ptrdiff_t old_errfunc;
+      lua_KContext ctx;  /* context info. in case of yields */
+    } c;
+  } u;
+  ptrdiff_t extra;
+  short nresults;  /* expected number of results from this function */
+  unsigned short callstatus;
+} CallInfo;
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="table.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="bytecode.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a href="table.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="bytecode.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

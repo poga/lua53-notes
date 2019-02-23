@@ -1,0 +1,1346 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Notes on the Implementation of Lua 5.3</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body class="light">
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li><a href="data_structure.html"><strong aria-hidden="true">2.</strong> Data Structure</a></li><li><ol class="section"><li><a href="value_tvalue.html"><strong aria-hidden="true">2.1.</strong> Value &amp; TValue</a></li><li><a href="string.html"><strong aria-hidden="true">2.2.</strong> String</a></li><li><a href="table.html"><strong aria-hidden="true">2.3.</strong> Table</a></li><li><a href="state.html"><strong aria-hidden="true">2.4.</strong> State</a></li><li><a href="bytecode.html"><strong aria-hidden="true">2.5.</strong> Bytecode</a></li><li><a href="function_closure.html"><strong aria-hidden="true">2.6.</strong> Functions &amp; Closures</a></li></ol></li><li><a href="mechanic.html"><strong aria-hidden="true">3.</strong> Mechanic</a></li><li><ol class="section"><li><a href="parsing_compiling.html"><strong aria-hidden="true">3.1.</strong> Parsing &amp; Compiling</a></li><li><a href="interpreter.html"><strong aria-hidden="true">3.2.</strong> Interpreter</a></li><li><a href="coroutine.html"><strong aria-hidden="true">3.3.</strong> Coroutine</a></li><li><a href="metatable.html"><strong aria-hidden="true">3.4.</strong> Metatable</a></li><li><a href="exceptions.html"><strong aria-hidden="true">3.5.</strong> Exceptions</a></li><li><a href="gc.html"><strong aria-hidden="true">3.6.</strong> Garbage Collection</a></li></ol></li><li><a href="others.html"><strong aria-hidden="true">4.</strong> Others</a></li><li><ol class="section"><li><a href="noop_macro.html"><strong aria-hidden="true">4.1.</strong> No-op macro</a></li><li><a href="references.html"><strong aria-hidden="true">4.2.</strong> References</a></li></ol></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">Notes on the Implementation of Lua 5.3</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                            
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="#introduction" id="introduction"><h1>Introduction</h1></a>
+<p><em>Notes on the Implementation of Lua 5.3</em> is a collection of my notes on the Lua 5.3 source code. It's a mix of both high-level ideas and interesting details in the source code.</p>
+<p>There can be errors. Feel free to <a href="mailto:poga.po@gmail.com">contact me</a> if you have any question or feedback.</p>
+<a class="header" href="#what-is-lua" id="what-is-lua"><h2>What is Lua?</h2></a>
+<p>From <a href="https://lua.org">lua.org</a>:</p>
+<blockquote>
+<p>Lua is a powerful, efficient, lightweight, embeddable scripting language. It supports procedural programming, object-oriented programming, functional programming, data-driven programming, and data description.</p>
+<p>Lua combines simple procedural syntax with powerful data description constructs based on associative arrays and extensible semantics. Lua is dynamically typed, runs by interpreting bytecode with a register-based virtual machine, and has automatic memory management with incremental garbage collection, making it ideal for configuration, scripting, and rapid prototyping.</p>
+<p>Lua has been used in <a href="https://en.wikipedia.org/wiki/Category:Lua-scriptable_software">many industrial applications</a> (e.g., <a href="http://since1968.com/article/190/mark-hamburg-interview-adobe-photoshop-lightroom-part-2-of-2">Adobe's Photoshop Lightroom</a> ), with an emphasis on embedded systems (e.g., the <a href="http://www.ginga.org.br/">Ginga</a> middleware for digital TV in Brazil) and <a href="https://en.wikipedia.org/wiki/Category:Lua-scripted_video_games">games</a> (e.g., <a href="http://www.wowwiki.com/Lua">World of Warcraft</a> and Angry Birds).</p>
+</blockquote>
+<a class="header" href="#how-to-read-this-book" id="how-to-read-this-book"><h2>How to read this book</h2></a>
+<p><strong>Reading code is personal</strong>. It's different from reading a book. It's trying to understand the design of a system. It's non-linear, tearing down, cross-referencing, experimenting, put it back together, and repeat.</p>
+<p>This book is not a comprehensive, line-by-line explanation. This book is a tour guide. It's a companion, instead of a replacement, of your journey.</p>
+<a class="header" href="#license" id="license"><h2>License</h2></a>
+<p><em>Notes on the Implementation of Lua 5.3</em> is licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/2.0/">CC BY-NC-SA 2.0</a>.</p>
+<a class="header" href="#data-structure" id="data-structure"><h1>Data Structure</h1></a>
+<blockquote>
+<p>Bad programmers worry about the code. Good programmers worry about data structures and their relationships. - Linus Torvalds</p>
+</blockquote>
+<p>Let's get started with primitive Lua data types.</p>
+<a class="header" href="#value--tvalue" id="value--tvalue"><h1>Value &amp; TValue</h1></a>
+<p>Everything in Lua is a <code>Value</code>.</p>
+<pre><code class="language-c">/*
+** Union of all Lua values
+*/
+typedef union Value {
+  GCObject *gc;    //* collectable objects *//
+  void *p;         //* light userdata *//
+  int b;           //* booleans *//
+  lua_CFunction f; //* light C functions *//
+  lua_Integer i;   //* integer numbers *//
+  lua_Number n;    //* float numbers *//
+} Value;
+</code></pre>
+<p>Values are categorized into two types: <strong>collectible objects</strong> and <strong>others</strong>. Collectible Objects are subject to garbage collection, others are not.</p>
+<p>The definition of <code>GCObject</code> is:</p>
+<pre><code class="language-c">/*
+** Common type for all collectable objects/
+*/
+typedef struct GCObject GCObject;
+
+/*
+** Common Header for all collectable objects (in macro form, to be
+** included in other objects)
+*/
+#define CommonHeader	GCObject *next; lu_byte tt; lu_byte marked
+
+/*
+** Common type has only the common header
+*/
+struct GCObject {
+  CommonHeader;
+};
+</code></pre>
+<p><code>GCObject</code> are chained together as a linked list. This makes the implementation of mark-and-sweep much simpler.</p>
+<p>Instead of <code>Value</code>,  <code>TValue</code> is used most of the time. It's just a <code>Value</code> and a type tag <code>tt_</code>.</p>
+<pre><code class="language-c">#define TValuefields	Value value_; int tt_
+
+typedef struct lua_TValue {
+  TValuefields;
+} TValue;
+
+/*
+** tags for Tagged Values have the following use of bits:
+** bits 0-3: actual tag (a LUA_T* value)
+** bits 4-5: variant bits
+** bit 6: whether value is collectable
+*/
+
+#define BIT_ISCOLLECTABLE	(1 &lt;&lt; 6)
+
+#define iscollectable(o)	(rttype(o) &amp; BIT_ISCOLLECTABLE)
+
+#define rttype(o)	((o)-&gt;tt_)
+</code></pre>
+<p>The tag <code>tt_</code> also indicates whether a value is collectible.</p>
+<a class="header" href="#string" id="string"><h1>String</h1></a>
+<p>The definition of <code>TString</code> is</p>
+<pre><code class="language-c">/*
+** Header for string value; string bytes follow the end of this structure
+** (aligned according to 'UTString'; see next).
+*/
+typedef struct TString {
+  CommonHeader;
+  lu_byte extra;  /* reserved words for short strings; &quot;has hash&quot; for longs */
+  lu_byte shrlen;  /* length for short strings */
+  unsigned int hash;
+  union {
+    size_t lnglen;  /* length for long strings */
+    struct TString *hnext;  /* linked list for hash table */
+  } u;
+} TString;
+
+/*
+** Ensures that address after this type is always fully aligned.
+*/
+typedef union UTString {
+  L_Umaxalign dummy;  /* ensures maximum alignment for strings */
+  TString tsv;
+} UTString;
+
+/* type to ensure maximum alignment */
+typedef union {
+  lua_Number n;
+  double u;
+  void *s;
+  lua_Integer i;
+  long l;
+} L_Umaxalign;
+</code></pre>
+<p>Note:</p>
+<ul>
+<li><code>TString</code> contains only the metadata of a string. There's no actual string body member defined in the struct.</li>
+<li>There are two types of <code>TString</code>: <strong>long string</strong> and <strong>short string</strong>.</li>
+<li><code>UTString</code> is defined to ensure maximum alignment.</li>
+</ul>
+<a class="header" href="#creating-a-string" id="creating-a-string"><h3>Creating a String</h3></a>
+<p>To create a string, first, we check if the string already exist in the global string cache. Only create new string when it's not in the cache.</p>
+<pre><code class="language-c">TString *luaS_new (lua_State *L, const char *str) {
+  unsigned int i = point2uint(str) % STRCACHE_N;  /* hash */
+  int j;
+  TString **p = G(L)-&gt;strcache[i];
+  for (j = 0; j &lt; STRCACHE_M; j++) {
+    if (strcmp(str, getstr(p[j])) == 0)  /* hit? */
+      return p[j];  /* that is it */
+  }
+  /* normal route */
+  for (j = STRCACHE_M - 1; j &gt; 0; j--)
+    p[j] = p[j - 1];  /* move out last element */
+  /* new element is first in the list */
+  p[0] = luaS_newlstr(L, str, strlen(str));
+  return p[0];
+}
+</code></pre>
+<p>If the length of the string is greater than <code>LUAI_MAXSHORTLEN</code>, then it's a <strong>long string</strong>, else it's a <strong>short string</strong></p>
+<pre><code class="language-c">TString *luaS_newlstr (lua_State *L, const char *str, size_t l) {
+  if (l &lt;= LUAI_MAXSHORTLEN)  /* short string? */
+    return internshrstr(L, str, l);
+  else {
+    TString *ts;
+    if (l &gt;= (MAX_SIZE - sizeof(TString))/sizeof(char))
+      luaM_toobig(L);
+    ts = luaS_createlngstrobj(L, l);
+    memcpy(getstr(ts), str, l * sizeof(char));
+    return ts;
+  }
+}
+</code></pre>
+<p>It's straight forward to create a <strong>long string</strong>.</p>
+<pre><code class="language-c">TString *luaS_createlngstrobj (lua_State *L, size_t l) {
+  TString *ts = createstrobj(L, l, LUA_TLNGSTR, G(L)-&gt;seed);
+  ts-&gt;u.lnglen = l;
+  return ts;
+}
+
+static TString *createstrobj (lua_State *L, size_t l, int tag, unsigned int h) {
+  TString *ts;
+  GCObject *o;
+  size_t totalsize;  /* total size of TString object */
+  totalsize = sizelstring(l);
+  o = luaC_newobj(L, tag, totalsize);
+  ts = gco2ts(o);
+  ts-&gt;hash = h;
+  ts-&gt;extra = 0;
+  getstr(ts)[l] = '\0';  /* ending 0 */
+  return ts;
+}
+
+#define sizelstring(l)  (sizeof(union UTString) + ((l) + 1) * sizeof(char))
+</code></pre>
+<p>Previously, we've noticed that <code>TString</code> does not store the string body as a struct member. Where does the string body actually go?</p>
+<p>When we create a string, we allocate a slice of memory with length <code>sizelstring(l)</code>, which is the size of <code>TString</code> and the size of the string body. This is a technique called <em>flexible array member</em>. The technique allows us to store the actual string body in the memory space following the <code>TString</code>.</p>
+<p>note: C99 standardized <a href="https://en.wikipedia.org/wiki/Flexible_array_member">flexible array member syntax</a>. However, Lua stuck to ISO C for portability.</p>
+<p>On the other hand, <strong>Short strings</strong> will be stored in the string table  <code>strt</code> in the global state because:</p>
+<ul>
+<li><code>strt</code> is a hash table, which allows us to compare short strings efficiently with only their hash.</li>
+<li>Avoid creating duplicated short strings.</li>
+<li>They can be managed with a separated <code>GCObject</code> linked-list, which makes the GC process more efficient.</li>
+</ul>
+<pre><code class="language-c">#define sizelstring(l)  (sizeof(union UTString) + ((l) + 1) * sizeof(char))
+
+static TString *internshrstr (lua_State *L, const char *str, size_t l) {
+  TString *ts;
+  global_State *g = G(L);
+  unsigned int h = luaS_hash(str, l, g-&gt;seed);
+  TString **list = &amp;g-&gt;strt.hash[lmod(h, g-&gt;strt.size)];
+  lua_assert(str != NULL);  /* otherwise 'memcmp'/'memcpy' are undefined */
+  for (ts = *list; ts != NULL; ts = ts-&gt;u.hnext) {
+    if (l == ts-&gt;shrlen &amp;&amp;
+        (memcmp(str, getstr(ts), l * sizeof(char)) == 0)) {
+      /* found! */
+      if (isdead(g, ts))  /* dead (but not collected yet)? */
+        changewhite(ts);  /* resurrect it */
+      return ts;
+    }
+  }
+  if (g-&gt;strt.nuse &gt;= g-&gt;strt.size &amp;&amp; g-&gt;strt.size &lt;= MAX_INT/2) {
+    luaS_resize(L, g-&gt;strt.size * 2);
+    list = &amp;g-&gt;strt.hash[lmod(h, g-&gt;strt.size)];  /* recompute with new size */
+  }
+  ts = createstrobj(L, l, LUA_TSHRSTR, h);
+  memcpy(getstr(ts), str, l * sizeof(char));
+  ts-&gt;shrlen = cast_byte(l);
+  ts-&gt;u.hnext = *list;
+  *list = ts;
+  g-&gt;strt.nuse++;
+  return ts;
+}
+</code></pre>
+<a class="header" href="#table" id="table"><h1>Table</h1></a>
+<p>In lua, a table is composed of 3 parts: <code>TKey</code>, <code>Node</code>, and <code>Table</code>.</p>
+<pre><code class="language-c">/*
+** Tables
+*/
+
+typedef union TKey {
+  struct {
+    TValuefields;
+    int next;  /* for chaining (offset for next node) */
+  } nk;
+  TValue tvk;
+} TKey;
+
+typedef struct Node {
+  TValue i_val;
+  TKey i_key;
+} Node;
+
+typedef struct Table {
+  CommonHeader;
+  lu_byte flags;  /* 1&lt;&lt;p means tagmethod(p) is not present */
+  lu_byte lsizenode;  /* log2 of size of 'node' array */
+  unsigned int sizearray;  /* size of 'array' array */
+  TValue *array;  /* array part */
+  Node *node;
+  Node *lastfree;  /* any free position is before this position */
+  struct Table *metatable;
+  GCObject *gclist;
+} Table;
+</code></pre>
+<p>A <code>Table</code> is built by multiple <code>Node</code>. Every <code>Node</code> is a pair of <code>TKey</code> and <code>TValue</code>.</p>
+<p>In the previous chapter, we know that the definition of <code>TValue</code> is:</p>
+<pre><code class="language-c">typedef struct lua_TValue {
+  TValuefields;
+} TValue;
+</code></pre>
+<p>However, this makes <code>TKey</code> looks unnecessarily complex. Why are we making a union on two <code>TValuefields</code>?</p>
+<p>In fact, it's for better memory alignment. <a href="http://lua-users.org/lists/lua-l/2014-02/msg00158.html">The size of a <code>TValue</code> can be larger than the size of its elements</a>. The same technique is also used for Strings.</p>
+<a class="header" href="#array-part-and-hash-part" id="array-part-and-hash-part"><h2>Array part and Hash part</h2></a>
+<p>Lua table is notorious for its duality between arrays and hashtables. The duality is also reflected in the implementation of Table. A quote from the comment in the source code:</p>
+<blockquote>
+<p>Implementation of tables (aka arrays, objects, or hash tables).</p>
+<p>Tables keep its elements in two parts: an array part and a hash part. Non-negative integer keys are all candidates to be kept in the array part. The actual size of the array is the largest 'n' such that more than half the slots between 1 and n are in use. Hash uses a mix of chained scatter table with Brent's variation. A main invariant of these tables is that, if an element is not in its main position (i.e. the 'original' position that its hash gives to it), then the colliding element is in its own main position. Hence even when the load factor reaches 100%, performance remains good.</p>
+</blockquote>
+<p>The <strong>array part</strong> is for optimizing integer keys in the table. The rest of the keys is stored in the <strong>hash part</strong>. For example, if we want to look up for a integer key in a table:</p>
+<pre><code class="language-c">/*
+** search function for integers
+*/
+const TValue *luaH_getint (Table *t, lua_Integer key) {
+  /* (1 &lt;= key &amp;&amp; key &lt;= t-&gt;sizearray) */
+  if (l_castS2U(key) - 1 &lt; t-&gt;sizearray)
+    return &amp;t-&gt;array[key - 1];
+  else {
+    Node *n = hashint(t, key);
+    for (;;) {  /* check whether 'key' is somewhere in the chain */
+      if (ttisinteger(gkey(n)) &amp;&amp; ivalue(gkey(n)) == key)
+        return gval(n);  /* that's it */
+      else {
+        int nx = gnext(n);
+        if (nx == 0) break;
+        n += nx;
+      }
+    }
+    return luaO_nilobject;
+  }
+}
+</code></pre>
+<p>We can see that if the size of the array part is larger than the key, we can return the value stored in the array part directly.</p>
+<p>The design of Lua table makes it works like a mix between a normal array, sparse array, and hashtable, which makes Lua table well-equipped for all kinds of usage pattern.</p>
+<a class="header" href="#inserting-a-new-key" id="inserting-a-new-key"><h2>Inserting a New Key</h2></a>
+<p>A key can be stored in the array part <strong>or</strong> the hash part. To maintain good performance, it's important to strike a balance between the usage of the array part and the hash part.</p>
+<p>Here's the pseudo code of inserting a new key into a table:</p>
+<pre><code>1. If the new key is a float
+1.1 if the key can be represented as an integer, convert it to integer
+1.2 if the key is NaN, return an error
+
+2. find the main position of the key
+2.1 if the main position if occupied, check if the occupier is on its main position.
+2.1.1 if the occupier is also on its main position, insert the new key to the free position
+2.1.2 if the occupier is not on its main position, move the occupier to the free position and free the position we want.
+2.1.3 if there's no free position available, invoke `rehash` to resize both the array part and the hash part.
+</code></pre>
+<p>And the code is:</p>
+<pre><code class="language-c">/*
+** inserts a new key into a hash table; first, check whether key's main
+** position is free. If not, check whether colliding node is in its main
+** position or not: if it is not, move colliding node to an empty place and
+** put new key in its main position; otherwise (colliding node is in its main
+** position), new key goes to an empty position.
+*/
+TValue *luaH_newkey (lua_State *L, Table *t, const TValue *key) {
+  Node *mp;
+  TValue aux;
+  if (ttisnil(key)) luaG_runerror(L, &quot;table index is nil&quot;);
+  else if (ttisfloat(key)) {
+    lua_Integer k;
+    if (luaV_tointeger(key, &amp;k, 0)) {  /* does index fit in an integer? */
+      setivalue(&amp;aux, k);
+      key = &amp;aux;  /* insert it as an integer */
+    }
+    else if (luai_numisnan(fltvalue(key)))
+      luaG_runerror(L, &quot;table index is NaN&quot;);
+  }
+  mp = mainposition(t, key);
+  if (!ttisnil(gval(mp)) || isdummy(t)) {  /* main position is taken? */
+    Node *othern;
+    Node *f = getfreepos(t);  /* get a free place */
+    if (f == NULL) {  /* cannot find a free place? */
+      rehash(L, t, key);  /* grow table */
+      /* whatever called 'newkey' takes care of TM cache */
+      return luaH_set(L, t, key);  /* insert key into grown table */
+    }
+    lua_assert(!isdummy(t));
+    othern = mainposition(t, gkey(mp));
+    if (othern != mp) {  /* is colliding node out of its main position? */
+      /* yes; move colliding node into free position */
+      while (othern + gnext(othern) != mp)  /* find previous */
+        othern += gnext(othern);
+      gnext(othern) = cast_int(f - othern);  /* rechain to point to 'f' */
+      *f = *mp;  /* copy colliding node into free pos. (mp-&gt;next also goes) */
+      if (gnext(mp) != 0) {
+        gnext(f) += cast_int(mp - f);  /* correct 'next' */
+        gnext(mp) = 0;  /* now 'mp' is free */
+      }
+      setnilvalue(gval(mp));
+    }
+    else {  /* colliding node is in its own main position */
+      /* new node will go into free position */
+      if (gnext(mp) != 0)
+        gnext(f) = cast_int((mp + gnext(mp)) - f);  /* chain new position */
+      else lua_assert(gnext(f) == 0);
+      gnext(mp) = cast_int(f - mp);
+      mp = f;
+    }
+  }
+  setnodekey(L, &amp;mp-&gt;i_key, key);
+  luaC_barrierback(L, t, key);
+  lua_assert(ttisnil(gval(mp)));
+  return gval(mp);
+}
+</code></pre>
+<p>There are many different hashtable implementations in the world. Lua chooses <a href="https://maths-people.anu.edu.au/%7Ebrent/pub/pub013.html">internal chained scatter table with Brent's variation</a> for performance and efficiency.</p>
+<p>To know more about the main position/free position and internal chained scatter table. I recommend you to check the references for more detail:</p>
+<ul>
+<li><a href="http://blog.reverberate.org/2009/02/art-of-hashing.html">The art of hashing</a></li>
+<li><a href="https://maths-people.anu.edu.au/%7Ebrent/pub/pub013.html">R. P. Brent, Reducing the retrieval time of scatter storage techniques, Communications of the ACM 16 (1973), 105-109.</a></li>
+</ul>
+<a class="header" href="#balancing-between-the-array-part-and-the-hash-part" id="balancing-between-the-array-part-and-the-hash-part"><h2>Balancing between the array part and the hash part</h2></a>
+<p>Finally, let's see the implement of <code>rehash</code>. <code>rehash</code> is responsible for keeping the balance between the array part and the hash part. The design is pretty simple and efficient.</p>
+<p>First, a <code>nums</code> array is used to keep track of the number of integer keys in each interval <code>i</code>.</p>
+<pre><code class="language-c">// nums[i] = number of keys 'k' where 2^(i - 1) &lt; k &lt;= 2^i
+</code></pre>
+<p>Then, <code>rehash</code> try to make sure the array part part contains at least half of all integer keys. Here's the pseudo code:</p>
+<pre><code>1. count keys in the array part, save to nums
+2. count integer keys in the hash part, save to nums
+3. count the number of non-interger keys
+4. Find out the `nums` interval which contains half of the total keys, resize array part to fit the interval, the rest goes to the hash part.
+</code></pre>
+<p>and the actual implementation:</p>
+<pre><code class="language-c">/*
+** nums[i] = number of keys 'k' where 2^(i - 1) &lt; k &lt;= 2^i
+*/
+static void rehash (lua_State *L, Table *t, const TValue *ek) {
+  unsigned int asize;  /* optimal size for array part */
+  unsigned int na;  /* number of keys in the array part */
+  unsigned int nums[MAXABITS + 1];
+  int i;
+  int totaluse;
+  for (i = 0; i &lt;= MAXABITS; i++) nums[i] = 0;  /* reset counts */
+  na = numusearray(t, nums);  /* count keys in array part */
+  totaluse = na;  /* all those keys are integer keys */
+  totaluse += numusehash(t, nums, &amp;na);  /* count keys in hash part */
+  /* count extra key */
+  na += countint(ek, nums);
+  totaluse++;
+  /* compute new size for array part */
+  asize = computesizes(nums, &amp;na);
+  /* resize the table to new computed sizes */
+  luaH_resize(L, t, asize, totaluse - na);
+}
+</code></pre>
+<a class="header" href="#state" id="state"><h1>State</h1></a>
+<a class="header" href="#global_state-and-lua_state" id="global_state-and-lua_state"><h2><code>global_State</code> and <code>lua_State</code></h2></a>
+<p>There are two kinds of states a Lua VM keep track of while running: <code>global_State</code> and <code>lua_State</code>.</p>
+<p>Each Lua VM has a <code>global_State</code>. It keeps the information about GC metadata, metatables, and string cache.</p>
+<pre><code class="language-c">/*
+** 'global state', shared by all threads of this state
+*/
+typedef struct global_State {
+  lua_Alloc frealloc;  /* function to reallocate memory */
+  void *ud;         /* auxiliary data to 'frealloc' */
+  l_mem totalbytes;  /* number of bytes currently allocated - GCdebt */
+  l_mem GCdebt;  /* bytes allocated not yet compensated by the collector */
+  lu_mem GCmemtrav;  /* memory traversed by the GC */
+  lu_mem GCestimate;  /* an estimate of the non-garbage memory in use */
+  stringtable strt;  /* hash table for strings */
+  TValue l_registry;
+  unsigned int seed;  /* randomized seed for hashes */
+  lu_byte currentwhite;
+  lu_byte gcstate;  /* state of garbage collector */
+  lu_byte gckind;  /* kind of GC running */
+  lu_byte gcrunning;  /* true if GC is running */
+  GCObject *allgc;  /* list of all collectable objects */
+  GCObject **sweepgc;  /* current position of sweep in list */
+  GCObject *finobj;  /* list of collectable objects with finalizers */
+  GCObject *gray;  /* list of gray objects */
+  GCObject *grayagain;  /* list of objects to be traversed atomically */
+  GCObject *weak;  /* list of tables with weak values */
+  GCObject *ephemeron;  /* list of ephemeron tables (weak keys) */
+  GCObject *allweak;  /* list of all-weak tables */
+  GCObject *tobefnz;  /* list of userdata to be GC */
+  GCObject *fixedgc;  /* list of objects not to be collected */
+  struct lua_State *twups;  /* list of threads with open upvalues */
+  unsigned int gcfinnum;  /* number of finalizers to call in each GC step */
+  int gcpause;  /* size of pause between successive GCs */
+  int gcstepmul;  /* GC 'granularity' */
+  lua_CFunction panic;  /* to be called in unprotected errors */
+  struct lua_State *mainthread;
+  const lua_Number *version;  /* pointer to version number */
+  TString *memerrmsg;  /* memory-error message */
+  TString *tmname[TM_N];  /* array with tag-method names */
+  struct Table *mt[LUA_NUMTAGS];  /* metatables for basic types */
+  TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */
+} global_State;
+</code></pre>
+<p>On the other hand, <code>lua_State</code> correspond to a Lua thread. The call stack of a given thread is also included in the corresponding <code>lua_State</code>.</p>
+<pre><code class="language-c">/*
+** 'per thread' state
+*/
+struct lua_State {
+  CommonHeader;
+  unsigned short nci;  /* number of items in 'ci' list */
+  lu_byte status;
+  StkId top;  /* first free slot in the stack */
+  global_State *l_G;
+  CallInfo *ci;  /* call info for current function */
+  const Instruction *oldpc;  /* last pc traced */
+  StkId stack_last;  /* last free slot in the stack */
+  StkId stack;  /* stack base */
+  UpVal *openupval;  /* list of open upvalues in this stack */
+  GCObject *gclist;
+  struct lua_State *twups;  /* list of threads with open upvalues */
+  struct lua_longjmp *errorJmp;  /* current error recover point */
+  CallInfo base_ci;  /* CallInfo for first level (C calling Lua) */
+  volatile lua_Hook hook;
+  ptrdiff_t errfunc;  /* current error handling function (stack index) */
+  int stacksize;
+  int basehookcount;
+  int hookcount;
+  unsigned short nny;  /* number of non-yieldable calls in stack */
+  unsigned short nCcalls;  /* number of nested C calls */
+  l_signalT hookmask;
+  lu_byte allowhook;
+};
+</code></pre>
+<a class="header" href="#call-stack" id="call-stack"><h2>Call stack</h2></a>
+<p>A call stack contains the information of an active subroutine. It's used to keep track of the point to which each subroutine should return control when it finishes executing.</p>
+<p>Here's the figure showing how the stack is related to other Lua objects :</p>
+<p><img src="./call_stack.jpeg" alt="" />
+<em>source: <a href="https://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html">Lua 5.3 Bytecode Reference</a></em></p>
+<p>While running, Lua VM maintains two stacks: a <code>Callinfo</code> stack and a <code>TValue</code> stack.</p>
+<ul>
+<li>The <code>Callinfo</code> stack keeps tracks of activation frames.</li>
+<li>The <code>TValue</code> stack stores the data needed by each subroutine, act as registers.</li>
+</ul>
+<p>When a new <code>lua_State</code> is created, its stack is also initialized:</p>
+<pre><code class="language-c">static void stack_init (lua_State *L1, lua_State *L) {
+  int i; CallInfo *ci;
+  /* initialize stack array */
+  L1-&gt;stack = luaM_newvector(L, BASIC_STACK_SIZE, TValue);
+  L1-&gt;stacksize = BASIC_STACK_SIZE;
+  for (i = 0; i &lt; BASIC_STACK_SIZE; i++)
+    setnilvalue(L1-&gt;stack + i);  /* erase new stack */
+  L1-&gt;top = L1-&gt;stack;
+  L1-&gt;stack_last = L1-&gt;stack + L1-&gt;stacksize - EXTRA_STACK;
+  /* initialize first ci */
+  ci = &amp;L1-&gt;base_ci;
+  ci-&gt;next = ci-&gt;previous = NULL;
+  ci-&gt;callstatus = 0;
+  ci-&gt;func = L1-&gt;top;
+  setnilvalue(L1-&gt;top++);  /* 'function' entry for this 'ci' */
+  ci-&gt;top = L1-&gt;top + LUA_MINSTACK;
+  L1-&gt;ci = ci;
+}
+</code></pre>
+<ol>
+<li>A <code>TValue</code> array is initialized with length <code>BASIC_STACK_SIZE</code>, filled with <code>nil</code>.</li>
+<li>A <code>Callinfo</code> is created and pointed to the first frame in the <code>TValue</code> stack.</li>
+</ol>
+<p>Here's the definition of <code>Callstack</code>:</p>
+<pre><code class="language-c">typedef struct CallInfo {
+  StkId func;  /* function index in the stack */
+  StkId	top;  /* top for this function */
+  struct CallInfo *previous, *next;  /* dynamic call link */
+  union {
+    struct {  /* only for Lua functions */
+      StkId base;  /* base for this function */
+      const Instruction *savedpc;
+    } l;
+    struct {  /* only for C functions */
+      lua_KFunction k;  /* continuation in case of yields */
+      ptrdiff_t old_errfunc;
+      lua_KContext ctx;  /* context info. in case of yields */
+    } c;
+  } u;
+  ptrdiff_t extra;
+  short nresults;  /* expected number of results from this function */
+  unsigned short callstatus;
+} CallInfo;
+</code></pre>
+<a class="header" href="#bytecode" id="bytecode"><h1>Bytecode</h1></a>
+<p>Lua uses 32-bit register-based instructions with the following possible format:</p>
+<p><img src="./bytecode.png" alt="" /></p>
+<p>Most of the instructions are under the <strong>iABC</strong> format, with the following exceptions:</p>
+<ul>
+<li><strong>iABx</strong>: <code>LOADK</code>, <code>LOADKX</code>, <code>CLOSURE</code></li>
+<li><strong>iAsBx</strong>: <code>JMP</code>, <code>FORLOOP</code>, <code>TFORLOOP</code></li>
+<li><strong>iAx</strong>: <code>EXTRAARG</code></li>
+</ul>
+<p>The format of each instruction is defined in <code>lopcode.c</code>:</p>
+<pre><code class="language-c">/*
+** masks for instruction properties. The format is:
+** bits 0-1: op mode
+** bits 2-3: C arg mode
+** bits 4-5: B arg mode
+** bit 6: instruction set register A
+** bit 7: operator is a test (next instruction must be a jump)
+*/
+
+enum OpArgMask {
+  OpArgN,  /* argument is not used */
+  OpArgU,  /* argument is used */
+  OpArgR,  /* argument is a register or a jump offset */
+  OpArgK   /* argument is a constant or register/constant */
+};
+
+#define opmode(t,a,b,c,m) (((t)&lt;&lt;7) | ((a)&lt;&lt;6) | ((b)&lt;&lt;4) | ((c)&lt;&lt;2) | (m))
+
+LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
+/*       T  A    B       C     mode		   opcode	*/
+  opmode(0, 1, OpArgR, OpArgN, iABC)		/* OP_MOVE */
+ ,opmode(0, 1, OpArgK, OpArgN, iABx)		/* OP_LOADK */
+ ,opmode(0, 1, OpArgN, OpArgN, iABx)		/* OP_LOADKX */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC)		/* OP_LOADBOOL */
+ ,opmode(0, 1, OpArgU, OpArgN, iABC)		/* OP_LOADNIL */
+ ,opmode(0, 1, OpArgU, OpArgN, iABC)		/* OP_GETUPVAL */
+ ,opmode(0, 1, OpArgU, OpArgK, iABC)		/* OP_GETTABUP */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_GETTABLE */
+// ...
+</code></pre>
+<a class="header" href="#references" id="references"><h2>References</h2></a>
+<ul>
+<li><a href="http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf">A No-Frills Introduction to Lua 5.1 VM Instructions</a></li>
+<li><a href="https://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html">Lua 5.3 Bytecode Reference</a></li>
+</ul>
+<a class="header" href="#functions--closures" id="functions--closures"><h1>Functions &amp; Closures</h1></a>
+<p>In the source code, Lua Functions are called <code>Closure</code>. A <code>Closure</code> is composed of <code>proto</code> and <code>UpVal</code>.</p>
+<ul>
+<li>A <code>proto</code> is basically a function not yet bound to <code>UpVal</code>.</li>
+<li><code>proto</code> is generated at compile time. <code>Closure</code> is generated at runtime.</li>
+<li>A <code>proto</code> can generate multiple <code>Closure</code>.</li>
+</ul>
+<p>The definition of <code>proto</code>.</p>
+<pre><code class="language-c">/*
+** Function Prototypes
+*/
+typedef struct Proto {
+  CommonHeader;
+  lu_byte numparams;  /* number of fixed parameters */
+  lu_byte is_vararg;
+  lu_byte maxstacksize;  /* number of registers needed by this function */
+  int sizeupvalues;  /* size of 'upvalues' */
+  int sizek;  /* size of 'k' */
+  int sizecode;
+  int sizelineinfo;
+  int sizep;  /* size of 'p' */
+  int sizelocvars;
+  int linedefined;  /* debug information  */
+  int lastlinedefined;  /* debug information  */
+  TValue *k;  /* constants used by the function */
+  Instruction *code;  /* opcodes */
+  struct Proto **p;  /* functions defined inside the function */
+  int *lineinfo;  /* map from opcodes to source lines (debug information) */
+  LocVar *locvars;  /* information about local variables (debug information) */
+  Upvaldesc *upvalues;  /* upvalue information */
+  struct LClosure *cache;  /* last-created closure with this prototype */
+  TString  *source;  /* used for debug information */
+  GCObject *gclist;
+} Proto;
+</code></pre>
+<p>When parsing functions, Lua generate instructions with <code>luaK_codeABx</code>/<code>luaK_codeABC</code>, then collect them into a <code>FuncState</code>. A <code>FuncState</code> will be converted into a <code>Proto</code> after the parsing is finished.</p>
+<p>If we compose a <code>Proto</code> and its corresponding <code>UpVal</code>s, we get a <code>Closure</code>. There are two kinds of <code>CLosure</code>:</p>
+<ul>
+<li><code>LClosure</code> is implemented in Lua</li>
+<li><code>CClosure</code> is implemented in C</li>
+</ul>
+<pre><code class="language-c">/*
+** Closures
+*/
+typedef int (*lua_CFunction) (lua_State *L);
+
+#define ClosureHeader \
+    CommonHeader; lu_byte nupvalues; GCObject *gclist
+
+typedef struct CClosure {
+  ClosureHeader;
+  lua_CFunction f;
+  TValue upvalue[1];  /* list of upvalues */
+} CClosure;
+
+
+typedef struct LClosure {
+  ClosureHeader;
+  struct Proto *p;
+  UpVal *upvals[1];  /* list of upvalues */
+} LClosure;
+
+typedef union Closure {
+  CClosure c;
+  LClosure l;
+} Closure;
+</code></pre>
+<p><code>CClosure</code> and <code>LClosure</code> both contain its upvalues and ClosureHeader. However, <code>CClosure</code> is just a function pointer and doesn't have a <code>Proto</code>.</p>
+<p>With <code>ClosureHeader</code>, closures are also chained together into a linked-list for garbage collection.</p>
+<a class="header" href="#mechanic" id="mechanic"><h1>Mechanic</h1></a>
+<a class="header" href="#parsing--compiling" id="parsing--compiling"><h1>Parsing &amp; Compiling</h1></a>
+<p>To load and parse a Lua code:</p>
+<ol>
+<li>load the file with <code>luaL_dofile</code>.</li>
+<li><code>luaL_dofile</code> will invoke <code>luaL_loadfile</code>, <code>luaL_loadfile</code> will parse the Lua code and return generated bytecode.</li>
+</ol>
+<p>The first step of parsing is to create <code>Proto</code> from chunks. A chunk is a valid lua code. <code>lua_load</code> will create a <code>Proto</code> <code>mainfunc</code>, then create a closure from the <code>Proto</code>, then put the closure to the top of the stack for further execution.</p>
+<p>Functions defined in the chunk will also be converted into a <code>Proto</code>, forming a tree of <code>Proto</code> with <code>mainfunc</code> as the root.</p>
+<a class="header" href="#parser" id="parser"><h2>Parser</h2></a>
+<p>The Lua Parser is not generated with a parser generator because:</p>
+<ul>
+<li>Lua has a high requirement for portability.</li>
+<li>The Lua parser needs to parse the source code and generate bytecodes <strong>in the same iteration</strong> for performance reason.</li>
+</ul>
+<p>In the process, <code>FuncState</code> will be used to store the temporary state of a function. Every <code>FuncState</code> has a <code>prev</code> pointer point to its parent. Then, Lua will traverse the <code>FuncState</code> tree with DFS.</p>
+<p>However, the DFS might not have enough information while traversing. (e.g. jumping to a function which is not yet defined). Lua can backfill these missing information to the traversed tree later.</p>
+<a class="header" href="#interpreter" id="interpreter"><h1>Interpreter</h1></a>
+<p><code>luaV_execute</code> is the main interpreter loop.</p>
+<pre><code class="language-c">void luaV_execute (lua_State *L) {
+  CallInfo *ci = L-&gt;ci;
+  LClosure *cl;
+  TValue *k;
+  StkId base;
+  ci-&gt;callstatus |= CIST_FRESH;  /* fresh invocation of 'luaV_execute&quot; */
+ newframe:  /* reentry point when frame changes (call/return) */
+  lua_assert(ci == L-&gt;ci);
+  cl = clLvalue(ci-&gt;func);  /* local reference to function's closure */
+  k = cl-&gt;p-&gt;k;  /* local reference to function's constant table */
+  base = ci-&gt;u.l.base;  /* local copy of function's base */
+  /* main loop of interpreter */
+  for (;;) {
+    Instruction i;
+    StkId ra;
+    vmfetch();
+    vmdispatch (GET_OPCODE(i)) {
+      vmcase(OP_MOVE) {
+        // implementation of OP_MOVE
+      }
+      // other cases...
+   }
+  }
+}
+</code></pre>
+<p>The implemented is simple: Fetch the next instruction with <code>vmfetch</code> and execute it.</p>
+<p>An important detail is that register references, such as <code>RA</code> and <code>RB</code>, are based on relative position to the current stack position. Therefore, when stack re-allocation happened, all register pointers need to be invalidated.</p>
+<pre><code class="language-c">/* fetch an instruction and prepare its execution */
+#define vmfetch()	{ \
+  i = *(ci-&gt;u.l.savedpc++); \
+  if (L-&gt;hookmask &amp; (LUA_MASKLINE | LUA_MASKCOUNT)) \
+    Protect(luaG_traceexec(L)); \
+  ra = RA(i); /* WARNING: any stack reallocation invalidates 'ra' */ \
+  lua_assert(base == ci-&gt;u.l.base); \
+  lua_assert(base &lt;= L-&gt;top &amp;&amp; L-&gt;top &lt; L-&gt;stack + L-&gt;stacksize); \
+}
+</code></pre>
+<a class="header" href="#coroutine" id="coroutine"><h1>Coroutine</h1></a>
+<p><strong>Note</strong>: You might want to have a clear picture of how Lua coroutine works before reading this chapter.</p>
+<p>Coroutine is one of the most powerful features of Lua. You can abstract away many convoluted asynchronous, multi-threaded code with clean and simple coroutines.</p>
+<p>In Lua, a coroutine is actually a <code>lua_State</code>, tagged with <code>LUA_TTHREAD</code>.</p>
+<pre><code class="language-c">LUA_API lua_State *lua_newthread (lua_State *L) {
+  global_State *g = G(L);
+  lua_State *L1;
+  lua_lock(L);
+  luaC_checkGC(L);
+  /* create new thread */
+  L1 = &amp;cast(LX *, luaM_newobject(L, LUA_TTHREAD, sizeof(LX)))-&gt;l;
+  L1-&gt;marked = luaC_white(g);
+  L1-&gt;tt = LUA_TTHREAD;
+  /* link it on list 'allgc' */
+  L1-&gt;next = g-&gt;allgc;
+  g-&gt;allgc = obj2gco(L1);
+  /* anchor it on L stack */
+  setthvalue(L, L-&gt;top, L1);
+  api_incr_top(L);
+  preinit_thread(L1, g);
+  L1-&gt;hookmask = L-&gt;hookmask;
+  L1-&gt;basehookcount = L-&gt;basehookcount;
+  L1-&gt;hook = L-&gt;hook;
+  resethookcount(L1);
+  /* initialize L1 extra space */
+  memcpy(lua_getextraspace(L1), lua_getextraspace(g-&gt;mainthread),
+         LUA_EXTRASPACE);
+  luai_userstatethread(L, L1);
+  stack_init(L1, L);  /* init stack */
+  lua_unlock(L);
+  return L1;
+}
+</code></pre>
+<a class="header" href="#creating-a-coroutine" id="creating-a-coroutine"><h2>Creating a coroutine</h2></a>
+<p>Since <code>lua_State</code> is an encapsulated environment, we need a way to pass data between <code>lua_State</code>s, just like how we pass data in Lua between coroutines.</p>
+<p>The data passing is achieved with <code>lua_xmove</code>. It just simply copy <code>n</code> values on the stack from <code>from</code> to <code>to</code>.</p>
+<pre><code class="language-c">LUA_API void lua_xmove (lua_State *from, lua_State *to, int n) {
+  int i;
+  if (from == to) return;
+  lua_lock(to);
+  api_checknelems(from, n);
+  api_check(from, G(from) == G(to), &quot;moving among independent states&quot;);
+  api_check(from, to-&gt;ci-&gt;top - to-&gt;top &gt;= n, &quot;stack overflow&quot;);
+  from-&gt;top -= n;
+  for (i = 0; i &lt; n; i++) {
+    setobj2s(to, to-&gt;top, from-&gt;top + i);
+    to-&gt;top++;  /* stack already checked by previous 'api_check' */
+  }
+  lua_unlock(to);
+}
+</code></pre>
+<p>We can create a coroutine with <code>luaB_create</code>. It works as follows:</p>
+<ol>
+<li>Make sure the value on the top of the stack is a function.</li>
+<li>create a new thread <code>NL</code>.</li>
+<li>Since the top of the stack is now <code>NL</code>, put the function back to the top.</li>
+<li>copy the function to <code>NL</code> with <code>lua_xmove</code>.</li>
+</ol>
+<pre><code class="language-c">static int luaB_cocreate (lua_State *L) {
+  lua_State *NL;
+  luaL_checktype(L, 1, LUA_TFUNCTION);
+  NL = lua_newthread(L);
+  lua_pushvalue(L, 1);  /* move function to top */
+  lua_xmove(L, NL, 1);  /* move function from L to NL */
+  return 1;
+}
+</code></pre>
+<a class="header" href="#running-a-coroutine" id="running-a-coroutine"><h2>Running a coroutine</h2></a>
+<p>It takes four functions to run a coroutine: <code>luaB_coresume</code>, <code>auxresume</code>, <code>lua_resume</code>, and finally <code>resume</code>.</p>
+<pre><code class="language-c">static int luaB_coresume (lua_State *L) {
+  lua_State *co = getco(L);
+  int r;
+  r = auxresume(L, co, lua_gettop(L) - 1);
+  if (r &lt; 0) {
+    lua_pushboolean(L, 0);
+    lua_insert(L, -2);
+    return 2;  /* return false + error message */
+  }
+  else {
+    lua_pushboolean(L, 1);
+    lua_insert(L, -(r + 1));
+    return r + 1;  /* return true + 'resume' returns */
+  }
+}
+
+static int auxresume (lua_State *L, lua_State *co, int narg) {
+  int status;
+  if (!lua_checkstack(co, narg)) {
+    lua_pushliteral(L, &quot;too many arguments to resume&quot;);
+    return -1;  /* error flag */
+  }
+  if (lua_status(co) == LUA_OK &amp;&amp; lua_gettop(co) == 0) {
+    lua_pushliteral(L, &quot;cannot resume dead coroutine&quot;);
+    return -1;  /* error flag */
+  }
+  lua_xmove(L, co, narg);
+  status = lua_resume(co, L, narg);
+  if (status == LUA_OK || status == LUA_YIELD) {
+    int nres = lua_gettop(co);
+    if (!lua_checkstack(L, nres + 1)) {
+      lua_pop(co, nres);  /* remove results anyway */
+      lua_pushliteral(L, &quot;too many results to resume&quot;);
+      return -1;  /* error flag */
+    }
+    lua_xmove(co, L, nres);  /* move yielded values */
+    return nres;
+  }
+  else {
+    lua_xmove(co, L, 1);  /* move error message */
+    return -1;  /* error flag */
+  }
+}
+</code></pre>
+<p>In <code>auxresume</code>:</p>
+<ol>
+<li>check the arguments</li>
+<li>check the state of coroutine</li>
+<li>invoke <code>lua_resume</code></li>
+<li>if <code>lua_resume</code> returned successfully, copy the returned value to the caller with <code>lua_xmove</code>. If an error is returned, copy the returned error with <code>lua_xmove</code>.</li>
+</ol>
+<pre><code class="language-c">// ldo.c
+LUA_API int lua_resume (lua_State *L, lua_State *from, int nargs) {
+  int status;
+  unsigned short oldnny = L-&gt;nny;  /* save &quot;number of non-yieldable&quot; calls */
+  lua_lock(L);
+  if (L-&gt;status == LUA_OK) {  /* may be starting a coroutine */
+    if (L-&gt;ci != &amp;L-&gt;base_ci)  /* not in base level? */
+      return resume_error(L, &quot;cannot resume non-suspended coroutine&quot;, nargs);
+  }
+  else if (L-&gt;status != LUA_YIELD)
+    return resume_error(L, &quot;cannot resume dead coroutine&quot;, nargs);
+  L-&gt;nCcalls = (from) ? from-&gt;nCcalls + 1 : 1;
+  if (L-&gt;nCcalls &gt;= LUAI_MAXCCALLS)
+    return resume_error(L, &quot;C stack overflow&quot;, nargs);
+  luai_userstateresume(L, nargs);
+  L-&gt;nny = 0;  /* allow yields */
+  api_checknelems(L, (L-&gt;status == LUA_OK) ? nargs + 1 : nargs);
+  status = luaD_rawrunprotected(L, resume, &amp;nargs);
+  if (status == -1)  /* error calling 'lua_resume'? */
+    status = LUA_ERRRUN;
+  else {  /* continue running after recoverable errors */
+    while (errorstatus(status) &amp;&amp; recover(L, status)) {
+      /* unroll continuation */
+      status = luaD_rawrunprotected(L, unroll, &amp;status);
+    }
+    if (errorstatus(status)) {  /* unrecoverable error? */
+      L-&gt;status = cast_byte(status);  /* mark thread as 'dead' */
+      seterrorobj(L, status, L-&gt;top);  /* push error message */
+      L-&gt;ci-&gt;top = L-&gt;top;
+    }
+    else lua_assert(status == L-&gt;status);  /* normal end or yield */
+  }
+  L-&gt;nny = oldnny;  /* restore 'nny' */
+  L-&gt;nCcalls--;
+  lua_assert(L-&gt;nCcalls == ((from) ? from-&gt;nCcalls : 0));
+  lua_unlock(L);
+  return status;
+}
+
+/*
+** Do the work for 'lua_resume' in protected mode. Most of the work
+** depends on the status of the coroutine: initial state, suspended
+** inside a hook, or regularly suspended (optionally with a continuation
+** function), plus erroneous cases: non-suspended coroutine or dead
+** coroutine.
+*/
+static void resume (lua_State *L, void *ud) {
+  int n = *(cast(int*, ud));  /* number of arguments */
+  StkId firstArg = L-&gt;top - n;  /* first argument */
+  CallInfo *ci = L-&gt;ci;
+  if (L-&gt;status == LUA_OK) {  /* starting a coroutine? */
+    if (!luaD_precall(L, firstArg - 1, LUA_MULTRET))  /* Lua function? */
+      luaV_execute(L);  /* call it */
+  }
+  else {  /* resuming from previous yield */
+    lua_assert(L-&gt;status == LUA_YIELD);
+    L-&gt;status = LUA_OK;  /* mark that it is running (again) */
+    ci-&gt;func = restorestack(L, ci-&gt;extra);
+    if (isLua(ci))  /* yielded inside a hook? */
+      luaV_execute(L);  /* just continue running Lua code */
+    else {  /* 'common' yield */
+      if (ci-&gt;u.c.k != NULL) {  /* does it have a continuation function? */
+        lua_unlock(L);
+        n = (*ci-&gt;u.c.k)(L, LUA_YIELD, ci-&gt;u.c.ctx); /* call continuation */
+        lua_lock(L);
+        api_checknelems(L, n);
+        firstArg = L-&gt;top - n;  /* yield results come from continuation */
+      }
+      luaD_poscall(L, ci, firstArg, n);  /* finish 'luaD_precall' */
+    }
+    unroll(L, NULL);  /* run continuation */
+  }
+}
+</code></pre>
+<p>The real detail is in the <code>resume</code> function. It's pretty much the same as invoking a function:</p>
+<ul>
+<li>If the coroutine is brand new, invoke <code>luaD_precall</code> to prepare the function.
+<ul>
+<li>invoke the function with <code>luaV_execute</code>.</li>
+</ul>
+</li>
+<li>If the coroutine is being resumed
+<ul>
+<li>If we're inside a hook, execute it (to preserve the context of the hook?).</li>
+<li>If it's a normal resume, check whether there's a continuation function.
+<ul>
+<li>if yes (it's a C function), resume from the continuation point <code>K</code> and yield the result.</li>
+</ul>
+</li>
+<li>finished the <code>luaD_precall</code> with <code>luaD_poscall</code>.</li>
+<li><code>unroll</code> the rest and run the continuation.</li>
+</ul>
+</li>
+</ul>
+<a class="header" href="#metatable" id="metatable"><h1>Metatable</h1></a>
+<p>When initializing a Lua VM, <code>LuaT_init</code> will save all built-in metatable names to the global state <code>tmname</code>. These names won't be garbage-collected.</p>
+<pre><code class="language-c">void luaT_init (lua_State *L) {
+  static const char *const luaT_eventname[] = {  /* ORDER TM */
+    &quot;__index&quot;, &quot;__newindex&quot;,
+    &quot;__gc&quot;, &quot;__mode&quot;, &quot;__len&quot;, &quot;__eq&quot;,
+    &quot;__add&quot;, &quot;__sub&quot;, &quot;__mul&quot;, &quot;__mod&quot;, &quot;__pow&quot;,
+    &quot;__div&quot;, &quot;__idiv&quot;,
+    &quot;__band&quot;, &quot;__bor&quot;, &quot;__bxor&quot;, &quot;__shl&quot;, &quot;__shr&quot;,
+    &quot;__unm&quot;, &quot;__bnot&quot;, &quot;__lt&quot;, &quot;__le&quot;,
+    &quot;__concat&quot;, &quot;__call&quot;
+  };
+  int i;
+  for (i=0; i&lt;TM_N; i++) {
+    G(L)-&gt;tmname[i] = luaS_new(L, luaT_eventname[i]);
+    luaC_fix(L, obj2gco(G(L)-&gt;tmname[i]));  /* never collect these names */
+  }
+}
+</code></pre>
+<p>We can find metamethods of a given object with <code>luaT_gettmbyobject</code>. If the object is not a table or userdata, <code>luaT_gettmbyobject</code> will search directly from the global state metatable <code>mt</code>.</p>
+<p>The real search work is in <code>luaT_gettm</code>. It will also cache the result to the object.</p>
+<pre><code class="language-c">/*
+** function to be used with macro &quot;fasttm&quot;: optimized for absence of
+** tag methods
+*/
+const TValue *luaT_gettm (Table *events, TMS event, TString *ename) {
+  const TValue *tm = luaH_getshortstr(events, ename);
+  lua_assert(event &lt;= TM_EQ);
+  if (ttisnil(tm)) {  /* no tag method? */
+    events-&gt;flags |= cast_byte(1u&lt;&lt;event);  /* cache this fact */
+    return NULL;
+  }
+  else return tm;
+}
+
+#define gfasttm(g,et,e) ((et) == NULL ? NULL : \
+  ((et)-&gt;flags &amp; (1u&lt;&lt;(e))) ? NULL : luaT_gettm(et, e, (g)-&gt;tmname[e]))
+
+#define fasttm(l,et,e)	gfasttm(G(l), et, e)
+
+
+const TValue *luaT_gettmbyobj (lua_State *L, const TValue *o, TMS event) {
+  Table *mt;
+  switch (ttnov(o)) {
+    case LUA_TTABLE:
+      mt = hvalue(o)-&gt;metatable;
+      break;
+    case LUA_TUSERDATA:
+      mt = uvalue(o)-&gt;metatable;
+      break;
+    default:
+      mt = G(L)-&gt;mt[ttnov(o)];
+  }
+  return (mt ? luaH_getshortstr(mt, G(L)-&gt;tmname[event]) : luaO_nilobject);
+}
+
+</code></pre>
+<p>Let's take a look at an example of how we actually use metamethod <code>__index</code>:</p>
+<pre><code class="language-c">/*
+** Finish the table access 'val = t[key]'.
+** if 'slot' is NULL, 't' is not a table; otherwise, 'slot' points to
+** t[k] entry (which must be nil).
+*/
+void luaV_finishget (lua_State *L, const TValue *t, TValue *key, StkId val,
+                      const TValue *slot) {
+  int loop;  /* counter to avoid infinite loops */
+  const TValue *tm;  /* metamethod */
+  for (loop = 0; loop &lt; MAXTAGLOOP; loop++) {
+    if (slot == NULL) {  /* 't' is not a table? */
+      lua_assert(!ttistable(t));
+      tm = luaT_gettmbyobj(L, t, TM_INDEX);
+      if (ttisnil(tm))
+        luaG_typeerror(L, t, &quot;index&quot;);  /* no metamethod */
+      /* else will try the metamethod */
+    }
+    else {  /* 't' is a table */
+      lua_assert(ttisnil(slot));
+      tm = fasttm(L, hvalue(t)-&gt;metatable, TM_INDEX);  /* table's metamethod */
+      if (tm == NULL) {  /* no metamethod? */
+        setnilvalue(val);  /* result is nil */
+        return;
+      }
+      /* else will try the metamethod */
+    }
+    if (ttisfunction(tm)) {  /* is metamethod a function? */
+      luaT_callTM(L, tm, t, key, val, 1);  /* call it */
+      return;
+    }
+    t = tm;  /* else try to access 'tm[key]' */
+    if (luaV_fastget(L,t,key,slot,luaH_get)) {  /* fast track? */
+      setobj2s(L, val, slot);  /* done */
+      return;
+    }
+    /* else repeat (tail call 'luaV_finishget') */
+  }
+  luaG_runerror(L, &quot;'__index' chain too long; possible loop&quot;);
+}
+</code></pre>
+<p><code>luaV_finishget</code> will look for <code>__index</code> metamethod recursively through the metatables:</p>
+<ol>
+<li>If a function is found, call it with <code>luaT_callTM</code>.</li>
+<li>If a table is found, recursively search it with tail call <code>luaV_finishget</code>.</li>
+<li>The maximum number of iteration is limited by <code>MAXTAGLOOP</code>.</li>
+</ol>
+<a class="header" href="#exceptions" id="exceptions"><h1>Exceptions</h1></a>
+<p>Exceptions in Lua are emulated with <code>LUAI_THROW</code>, <code>LUAI_TRY</code>, and <code>luai_jmpbuf</code>.</p>
+<p>Interestingly, if you compile Lua with a C++ compiler, standard C++ exceptions will be used. If a C compiler is used, they will be emulated with <code>setjmp</code> and <code>longjmp</code>.</p>
+<pre><code class="language-c">/*
+** LUAI_THROW/LUAI_TRY define how Lua does exception handling. By
+** default, Lua handles errors with exceptions when compiling as
+** C++ code, with _longjmp/_setjmp when asked to use them, and with
+** longjmp/setjmp otherwise.
+*/
+#if !defined(LUAI_THROW)				/* { */
+
+#if defined(__cplusplus) &amp;&amp; !defined(LUA_USE_LONGJMP)	/* { */
+
+/* C++ exceptions */
+#define LUAI_THROW(L,c)		throw(c)
+#define LUAI_TRY(L,c,a) \
+    try { a } catch(...) { if ((c)-&gt;status == 0) (c)-&gt;status = -1; }
+#define luai_jmpbuf		int  /* dummy variable */
+
+#elif defined(LUA_USE_POSIX)				/* }{ */
+
+/* in POSIX, try _longjmp/_setjmp (more efficient) */
+#define LUAI_THROW(L,c)		_longjmp((c)-&gt;b, 1)
+#define LUAI_TRY(L,c,a)		if (_setjmp((c)-&gt;b) == 0) { a }
+#define luai_jmpbuf		jmp_buf
+
+#else							/* }{ */
+
+/* ISO C handling with long jumps */
+#define LUAI_THROW(L,c)		longjmp((c)-&gt;b, 1)
+#define LUAI_TRY(L,c,a)		if (setjmp((c)-&gt;b) == 0) { a }
+#define luai_jmpbuf		jmp_buf
+
+#endif							/* } */
+
+#endif							/* } */
+</code></pre>
+<p>An <code>errorjmp</code> is defined in Lua state. It's a linked-list for recording a series of jump location of the current error.</p>
+<pre><code>/* chain list of long jump buffers */
+struct lua_longjmp {
+  struct lua_longjmp *previous;
+  luai_jmpbuf b;
+  volatile int status;  /* error code */
+};
+
+// error codes
+/* thread status */
+#define LUA_OK		0
+#define LUA_YIELD	1
+#define LUA_ERRRUN	2
+#define LUA_ERRSYNTAX	3
+#define LUA_ERRMEM	4
+#define LUA_ERRGCMM	5
+#define LUA_ERRERR	6
+</code></pre>
+<p><code>lua_longjmp</code> is used in the <code>luaD_rawrunprotected</code>:</p>
+<pre><code class="language-c">int luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud) {
+  unsigned short oldnCcalls = L-&gt;nCcalls;
+  struct lua_longjmp lj;
+  lj.status = LUA_OK;
+  lj.previous = L-&gt;errorJmp;  /* chain new error handler */
+  L-&gt;errorJmp = &amp;lj;
+  LUAI_TRY(L, &amp;lj,
+    (*f)(L, ud);
+  );
+  L-&gt;errorJmp = lj.previous;  /* restore old error handler */
+  L-&gt;nCcalls = oldnCcalls;
+  return lj.status;
+}
+</code></pre>
+<p><code>luaD_rawrunprotected</code> is used in the <code>luaD_pcall</code>.</p>
+<pre><code class="language-c">int luaD_pcall (lua_State *L, Pfunc func, void *u,
+                ptrdiff_t old_top, ptrdiff_t ef) {
+  int status;
+  CallInfo *old_ci = L-&gt;ci;
+  lu_byte old_allowhooks = L-&gt;allowhook;
+  unsigned short old_nny = L-&gt;nny;
+  ptrdiff_t old_errfunc = L-&gt;errfunc;
+  L-&gt;errfunc = ef;
+  status = luaD_rawrunprotected(L, func, u);
+  if (status != LUA_OK) {  /* an error occurred? */
+    StkId oldtop = restorestack(L, old_top);
+    luaF_close(L, oldtop);  /* close possible pending closures */
+    seterrorobj(L, status, oldtop);
+    L-&gt;ci = old_ci;
+    L-&gt;allowhook = old_allowhooks;
+    L-&gt;nny = old_nny;
+    luaD_shrinkstack(L);
+  }
+  L-&gt;errfunc = old_errfunc;
+  return status;
+}
+</code></pre>
+<a class="header" href="#garbage-collection" id="garbage-collection"><h1>Garbage Collection</h1></a>
+<p>The most important aspect of GC is its design and trade-off. There's no &quot;best GC&quot; in the world.</p>
+<p>In this chapter, we will focus on the high-level concept of Lua's GC. For more detail, check references</p>
+<a class="header" href="#history-of-luas-gc" id="history-of-luas-gc"><h2>History of Lua's GC</h2></a>
+<a class="header" href="#mark-and-sweep" id="mark-and-sweep"><h3>mark-and-sweep</h3></a>
+<p>Before Lua 5.0, a simple mark-and-sweep is used by Lua. The idea is simple: Traverse all objects from the root, mark all visited object and release the un-visitable.</p>
+<p>However, mark-and-sweep suffers from the stop-the-world, non-incremental algorithm. You have to check <strong>all objects</strong> at once, and <strong>the object tree can't be modified</strong> while the marking process is running. The performance is also proportional to the memory usage: More memory you use, Slower the GC will perform.</p>
+<a class="header" href="#incremental-gc" id="incremental-gc"><h3>incremental GC</h3></a>
+<p>Lua 5.1 employed an incremental GC. Incremental GC is based on the idea of the <strong>mutator</strong>: From the perspective of a garbage collector, the program is just an outside who keep changing the memory. If we can keep track of which memory location is changed by the program, we don't have to check the whole memory every single time.</p>
+<p>At the moment, Lua implemented tri-color marking. The algorithm can reduce GC latency. However, the cost of allocation and space-cost is increased.</p>
+<a class="header" href="#abandoned-generational-gc" id="abandoned-generational-gc"><h3>(abandoned) generational GC</h3></a>
+<p>Lua 5.2 tried to switch to a generator GC. Unfortunately, it's reverted in Lua 5.3 due to some bug and naive implementation.</p>
+<a class="header" href="#lua-54" id="lua-54"><h3>Lua 5.4?</h3></a>
+<p>Lua 5.4-work1 re-implemented a generational GC. Since everything is still in flux, we won't go into the detail.</p>
+<a class="header" href="#the-timing-of-luas-gc" id="the-timing-of-luas-gc"><h2>The timing of Lua's GC</h2></a>
+<p>Lua GC is <strong>not</strong> based on wall-clock. It's based on your memory allocation: It checks the memory usage everything you allocate new memory.</p>
+<a class="header" href="#the-pace-of-a-garbage-collector" id="the-pace-of-a-garbage-collector"><h2>The Pace of a Garbage Collector</h2></a>
+<p>A <strong>pace</strong> is the frequency of execution of a garbage collector.</p>
+<ul>
+<li>high pace: low memory overhead, high CPU overhead.</li>
+<li>low pace: high memory overhead, low CPU overhead.</li>
+</ul>
+<a class="header" href="#references-1" id="references-1"><h2>References</h2></a>
+<ul>
+<li><a href="https://www.lua.org/wshop18/Ierusalimschy.pdf">Garbage Collection in Lua</a></li>
+<li><a href="http://wiki.luajit.org/New-Garbage-Collector">LuaJIT - New Garbage Collector</a></li>
+</ul>
+<a class="header" href="#others" id="others"><h1>Others</h1></a>
+<a class="header" href="#no-op-macro" id="no-op-macro"><h1>no-op macro</h1></a>
+<p>In the code, <code>lua_assert</code>, <code>lua_lock</code>, and <code>lua_unlock</code> are defined as <code>(void)0</code>, which is essentially a no-op. Why?</p>
+<p>It's because:</p>
+<ul>
+<li>Vanilla Lua is pure ANSI C and runs on a single thread. So we don't need <code>lock</code> and <code>unlock</code>.</li>
+<li>Lua is designed to be ported to many different platforms. Porters can customize the behavior of Lua by overriding these macros. For example, you might need some form of <code>GIL</code> like Python if you want multi-threading.</li>
+</ul>
+<p>You need to implement your own assert mechanism if you want to debug the internal of Lua</p>
+<a class="header" href="#references-2" id="references-2"><h2>References</h2></a>
+<ul>
+<li><a href="https://stackoverflow.com/questions/3010974/purpose-of-lua-lock-and-lua-unlock">https://stackoverflow.com/questions/3010974/purpose-of-lua-lock-and-lua-unlock</a></li>
+</ul>
+<a class="header" href="#references-3" id="references-3"><h1>References</h1></a>
+<p>Many people already walked through Lua's source code and wrote down their notes. This book won't be possible without them.</p>
+<ul>
+<li><a href="https://www.lua.org/doc/jucs05.pdf">The implementation of Lua 5.0</a></li>
+<li><a href="https://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html">Ravi Programming Language - Lua 5.3 bytecode reference</a></li>
+<li><a href="https://github.com/lichuang/Lua-Source-Internal">Lua-Source-Internal</a></li>
+<li><a href="https://blog.codingnow.com/2018/10/lua_gc.html">Lua GC 的工作原理</a></li>
+<li><a href="https://blog.csdn.net/yuanlin2008/article/category/1307277">探索Lua5.2内部实现</a></li>
+<li><a href="http://wiki.luajit.org/Home">LuaJIT Wiki</a></li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+        
+        <script type="text/javascript">
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+        
+        
+
+    </body>
+</html>
