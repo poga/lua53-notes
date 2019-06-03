@@ -4,6 +4,8 @@
 
 There can be errors. Feel free to [contact me](mailto:poga.po@gmail.com) if you have any question or feedback.
 
+If you like the book, you might enjoy [my other stuffs](https://devpoga.org).
+
 ## What is Lua?
 
 From [lua.org](https://lua.org):
